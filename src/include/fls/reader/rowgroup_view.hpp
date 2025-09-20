@@ -8,6 +8,7 @@
 
 #include "fls/std/span.hpp"
 #include "fls/std/vector.hpp"
+#include <unordered_map>
 
 namespace fastlanes {
 /*--------------------------------------------------------------------------------------------------------------------*/
@@ -17,14 +18,15 @@ class ColumnView;
 
 class RowgroupView {
 public:
-	explicit RowgroupView(span<std::byte> ptr, const RowgroupDescriptorT& footer);
+	explicit RowgroupView(std::unordered_map<idx_t, std::span<std::byte>> map, const RowgroupDescriptorT& footer);
 
 public:
 	ColumnView&       operator[](n_t col_idx);
 	const ColumnView& operator[](n_t col_idx) const;
 
 public:
-	vector<up<ColumnView>> columns;
+	vector<up<ColumnView>>           columns;
+	std::unordered_map<n_t, idx_t> col_to_pos;
 };
 
 } // namespace fastlanes

@@ -23,12 +23,14 @@ class ColumnView {
 public:
 	explicit ColumnView(span<std::byte>            column_span,
 	                    const ColumnDescriptorT&   column_descriptor,
-	                    const RowgroupDescriptorT& rowgroup_descriptor);
+	                    const RowgroupDescriptorT& rowgroup_descriptor,
+	                    uint64_t                   column_offset);
 	[[nodiscard]] SegmentView GetSegment(n_t segment_idx) const;
 
 public:
 	span<std::byte>          column_span;
 	const ColumnDescriptorT& column_descriptor;
+	uint64_t                 base_offset;
 	vector<ColumnView>       children;
 };
 

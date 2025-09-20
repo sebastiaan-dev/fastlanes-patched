@@ -63,7 +63,9 @@ public:
 /*--------------------------------------------------------------------------------------------------------------------*\
  * make_segment_view
 \*--------------------------------------------------------------------------------------------------------------------*/
-SegmentView make_segment_view(span<std::byte> column_span, const SegmentDescriptorT& segment_descriptor);
+SegmentView make_segment_view(span<std::byte> column_span,
+                              const SegmentDescriptorT& segment_descriptor,
+                              uint64_t                  column_offset = 0);
 
 /*--------------------------------------------------------------------------------------------------------------------*\
  * Segment

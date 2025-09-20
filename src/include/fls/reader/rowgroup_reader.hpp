@@ -22,6 +22,10 @@ class Rowgroup;
 /*--------------------------------------------------------------------------------------------------------------------*/
 class RowgroupReader {
 public:
+	explicit RowgroupReader(const path&                file_path,
+	                        const RowgroupDescriptorT& rowgroup_descriptor,
+	                        Connection&                fls,
+	                        const std::vector<idx_t>&  column_ids);
 	explicit RowgroupReader(const path& file_path, const RowgroupDescriptorT& rowgroup_descriptor, Connection& fls);
 
 public:
@@ -43,10 +47,15 @@ public:
 	vector<sp<PhysicalExpr>> m_expressions;
 
 private:
+	void Initialize(const path& file_path);
+
+	void NormalizeColumnIds();
+
 	Connection&                m_connection;
 	const RowgroupDescriptorT& m_rowgroup_descriptor;
-	up<Buf>                    m_buf;
+	std::vector<up<Buf>>       m_column_bufs;
 	up<RowgroupView>           m_rowgroup_view;
+	std::vector<idx_t>         m_column_ids;
 };
 
 } // namespace fastlanes

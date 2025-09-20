@@ -13,23 +13,28 @@
 
 namespace fastlanes {
 
-RowgroupView::RowgroupView(span<std::byte> ptr, const RowgroupDescriptorT& footer) {
+RowgroupView::RowgroupView(std::unordered_map<idx_t, std::span<std::byte>> map, const RowgroupDescriptorT& footer) {
+	col_to_pos.reserve(map.size());
 
-	for (const auto& column_descriptor : footer.m_column_descriptors) {
-		const span<std::byte> column_span = ptr;
-		columns.emplace_back(make_unique<ColumnView>(column_span, *column_descriptor, footer));
+	for (const auto& [id, data] : map) {
+		const auto& column_descriptor = footer.m_column_descriptors.at(id);
+		columns.emplace_back(
+		    std::make_unique<ColumnView>(data, *column_descriptor, footer, column_descriptor->column_offset));
+		col_to_pos.emplace(id, columns.size() - 1);
 	}
 }
 
 ColumnView& RowgroupView::operator[](const n_t col_idx) {
 	FLS_ASSERT_NOT_EMPTY_VEC(columns)
 
-	return *columns[col_idx];
+	const auto pos_idx = col_to_pos.at(col_idx);
+	return *columns[pos_idx];
 }
 
 const ColumnView& RowgroupView::operator[](const n_t col_idx) const {
 	FLS_ASSERT_NOT_EMPTY_VEC(columns)
 
-	return *columns[col_idx];
+	const auto pos_idx = col_to_pos.at(col_idx);
+	return *columns[pos_idx];
 }
 } // namespace fastlanes
