@@ -369,6 +369,10 @@ void cast(rowgroup_pt& rowgroup, ColumnDescriptorT& column_descriptor) {
 			          }
 		          },
 		          [&]<typename PT>(up<TypedCol<PT>>& typed_col) {
+			          if (column_descriptor.data_type == DataType::DATE) {
+				          should_be_cast = false;
+				          return;
+			          }
 			          if (column_descriptor.data_type == DataType::DECIMAL) {
 				          column_descriptor.data_type = DataType::INT64;
 				          should_be_cast              = true;
