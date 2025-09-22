@@ -16,21 +16,30 @@ namespace fastlanes {
 ColumnView::ColumnView(const span<std::byte>      column_span,
                        const ColumnDescriptorT&   column_descriptor,
                        const RowgroupDescriptorT& rowgroup_descriptor,
-                       const uint64_t             column_offset)
+                       const uint64_t             column_offset,
+                       std::shared_ptr<void>      column_owner)
     : column_span(column_span)
     , column_descriptor(column_descriptor)
-    , base_offset(column_offset) {
+    , base_offset(column_offset)
+    , owner(std::move(column_owner)) {
 	for (n_t child_col_idx {0}; child_col_idx < column_descriptor.children.size(); ++child_col_idx) {
 
 		auto& child_column_descriptor = column_descriptor.children[child_col_idx];
-		children.emplace_back(column_span, *child_column_descriptor, rowgroup_descriptor, base_offset);
+		children.emplace_back(column_span,
+		                     *child_column_descriptor,
+		                     rowgroup_descriptor,
+		                     base_offset,
+		                     owner);
 	}
 }
 
 SegmentView ColumnView::GetSegment(n_t segment_idx) const {
 	FLS_ASSERT_L(segment_idx, column_descriptor.segment_descriptors.size());
 
-	return make_segment_view(column_span, *column_descriptor.segment_descriptors[segment_idx], base_offset);
+	return make_segment_view(column_span,
+	                        *column_descriptor.segment_descriptors[segment_idx],
+	                        base_offset,
+	                        owner);
 }
 
 } // namespace fastlanes

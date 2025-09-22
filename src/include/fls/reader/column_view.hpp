@@ -9,6 +9,7 @@
 #include "fls/common/alias.hpp"
 #include "fls/std/span.hpp"
 #include "fls/std/vector.hpp"
+#include <memory>
 
 namespace fastlanes {
 /*--------------------------------------------------------------------------------------------------------------------*/
@@ -24,7 +25,8 @@ public:
 	explicit ColumnView(span<std::byte>            column_span,
 	                    const ColumnDescriptorT&   column_descriptor,
 	                    const RowgroupDescriptorT& rowgroup_descriptor,
-	                    uint64_t                   column_offset);
+	                    uint64_t                   column_offset,
+	                    std::shared_ptr<void>      column_owner = nullptr);
 	[[nodiscard]] SegmentView GetSegment(n_t segment_idx) const;
 
 public:
@@ -32,6 +34,7 @@ public:
 	const ColumnDescriptorT& column_descriptor;
 	uint64_t                 base_offset;
 	vector<ColumnView>       children;
+	std::shared_ptr<void>    owner;
 };
 
 } // namespace fastlanes

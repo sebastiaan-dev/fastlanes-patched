@@ -12,6 +12,7 @@
 #include "fls/reader/rowgroup_reader.hpp"
 #include "fls/std/filesystem.hpp" // for path
 #include "fls/std/vector.hpp"     // for vector
+#include <memory>
 #include "fls/table/chunk.hpp"    // for Chunk
 
 namespace fastlanes {
@@ -53,7 +54,7 @@ private:
 
 	Connection&                m_connection;
 	const RowgroupDescriptorT& m_rowgroup_descriptor;
-	std::vector<up<Buf>>       m_column_bufs;
+	std::vector<std::shared_ptr<Buf>> m_column_bufs;
 	up<RowgroupView>           m_rowgroup_view;
 	std::vector<idx_t>         m_column_ids;
 };

@@ -8,17 +8,23 @@
 
 #include "fls/std/span.hpp"
 #include "fls/std/vector.hpp"
+#include <memory>
 #include <unordered_map>
 
 namespace fastlanes {
 /*--------------------------------------------------------------------------------------------------------------------*/
 struct RowgroupDescriptorT;
 class ColumnView;
+
+struct ColumnBufferReference {
+	span<std::byte>       data;
+	std::shared_ptr<void> owner;
+};
 /*--------------------------------------------------------------------------------------------------------------------*/
 
 class RowgroupView {
 public:
-	explicit RowgroupView(std::unordered_map<idx_t, std::span<std::byte>> map, const RowgroupDescriptorT& footer);
+	explicit RowgroupView(std::unordered_map<idx_t, ColumnBufferReference> map, const RowgroupDescriptorT& footer);
 
 public:
 	ColumnView&       operator[](n_t col_idx);

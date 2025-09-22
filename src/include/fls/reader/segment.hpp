@@ -10,6 +10,7 @@
 #include "fls/std/span.hpp"
 #include "fls/std/variant.hpp"
 #include "fls/std/vector.hpp"
+#include <memory>
 
 namespace fastlanes {
 /*--------------------------------------------------------------------------------------------------------------------*/
@@ -47,7 +48,8 @@ n_t get_size(const entry_point_view_t& entry_point_view);
 \*--------------------------------------------------------------------------------------------------------------------*/
 class SegmentView {
 public:
-	explicit SegmentView(entry_point_view_t entry_point_view, span<std::byte> data_span);
+	explicit SegmentView(entry_point_view_t entry_point_view, span<std::byte> data_span,
+	                    std::shared_ptr<void> owner = nullptr);
 
 public:
 	void              PointTo(n_t vec_idx);
@@ -58,6 +60,7 @@ public:
 	span<std::byte>    data_span;
 	std::byte*         data;
 	n_t                vec_idx;
+	std::shared_ptr<void> owner;
 };
 
 /*--------------------------------------------------------------------------------------------------------------------*\
@@ -65,7 +68,8 @@ public:
 \*--------------------------------------------------------------------------------------------------------------------*/
 SegmentView make_segment_view(span<std::byte> column_span,
                               const SegmentDescriptorT& segment_descriptor,
-                              uint64_t                  column_offset = 0);
+                              uint64_t                  column_offset = 0,
+                              std::shared_ptr<void>     owner = nullptr);
 
 /*--------------------------------------------------------------------------------------------------------------------*\
  * Segment

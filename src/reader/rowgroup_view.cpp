@@ -13,13 +13,14 @@
 
 namespace fastlanes {
 
-RowgroupView::RowgroupView(std::unordered_map<idx_t, std::span<std::byte>> map, const RowgroupDescriptorT& footer) {
+RowgroupView::RowgroupView(std::unordered_map<idx_t, ColumnBufferReference> map,
+                           const RowgroupDescriptorT& footer) {
 	col_to_pos.reserve(map.size());
 
 	for (const auto& [id, data] : map) {
 		const auto& column_descriptor = footer.m_column_descriptors.at(id);
-		columns.emplace_back(
-		    std::make_unique<ColumnView>(data, *column_descriptor, footer, column_descriptor->column_offset));
+		columns.emplace_back(std::make_unique<ColumnView>(
+		    data.data, *column_descriptor, footer, column_descriptor->column_offset, data.owner));
 		col_to_pos.emplace(id, columns.size() - 1);
 	}
 }
