@@ -110,6 +110,7 @@ struct ColumnDescriptorT : public ::flatbuffers::NativeTable {
 	std::vector<std::unique_ptr<fastlanes::SegmentDescriptorT>> segment_descriptors {};
 	uint64_t                                                    n_null = 0;
 	std::unique_ptr<fastlanes::DecimalTypeT>                    fix_me_decimal_type {};
+	std::unique_ptr<fastlanes::BinaryValueT>                    min {};
 	ColumnDescriptorT() = default;
 	ColumnDescriptorT(const ColumnDescriptorT& o);
 	ColumnDescriptorT(ColumnDescriptorT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -131,7 +132,8 @@ struct ColumnDescriptor FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
         VT_EXPR_SPACE          = 20,
         VT_SEGMENT_DESCRIPTORS = 22,
         VT_N_NULL              = 24,
-        VT_FIX_ME_DECIMAL_TYPE = 26
+        VT_FIX_ME_DECIMAL_TYPE = 26,
+        VT_MIN                 = 28
 	};
 	fastlanes::DataType data_type() const {
 		return static_cast<fastlanes::DataType>(GetField<uint8_t>(VT_DATA_TYPE, 0));
@@ -172,6 +174,9 @@ struct ColumnDescriptor FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
 	const fastlanes::DecimalType* fix_me_decimal_type() const {
 		return GetPointer<const fastlanes::DecimalType*>(VT_FIX_ME_DECIMAL_TYPE);
 	}
+	const fastlanes::BinaryValue* min() const {
+		return GetPointer<const fastlanes::BinaryValue*>(VT_MIN);
+	}
 	bool Verify(::flatbuffers::Verifier& verifier) const {
 		return VerifyTableStart(verifier) && VerifyField<uint8_t>(verifier, VT_DATA_TYPE, 1) &&
 		       VerifyOffset(verifier, VT_ENCODING_RPN) && verifier.VerifyTable(encoding_rpn()) &&
@@ -185,6 +190,7 @@ struct ColumnDescriptor FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
 		       VerifyOffset(verifier, VT_SEGMENT_DESCRIPTORS) && verifier.VerifyVector(segment_descriptors()) &&
 		       verifier.VerifyVectorOfTables(segment_descriptors()) && VerifyField<uint64_t>(verifier, VT_N_NULL, 8) &&
 		       VerifyOffset(verifier, VT_FIX_ME_DECIMAL_TYPE) && verifier.VerifyTable(fix_me_decimal_type()) &&
+		       VerifyOffset(verifier, VT_MIN) && verifier.VerifyTable(min()) &&
 		       verifier.EndTable();
 	}
 	ColumnDescriptorT* UnPack(const ::flatbuffers::resolver_function_t* _resolver = nullptr) const;
@@ -238,6 +244,9 @@ struct ColumnDescriptorBuilder {
 	void add_fix_me_decimal_type(::flatbuffers::Offset<fastlanes::DecimalType> fix_me_decimal_type) {
 		fbb_.AddOffset(ColumnDescriptor::VT_FIX_ME_DECIMAL_TYPE, fix_me_decimal_type);
 	}
+	void add_min(::flatbuffers::Offset<fastlanes::BinaryValue> min) {
+		fbb_.AddOffset(ColumnDescriptor::VT_MIN, min);
+	}
 	explicit ColumnDescriptorBuilder(::flatbuffers::FlatBufferBuilder& _fbb)
 	    : fbb_(_fbb) {
 		start_ = fbb_.StartTable();
@@ -263,13 +272,15 @@ inline ::flatbuffers::Offset<ColumnDescriptor> CreateColumnDescriptor(
     ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<fastlanes::SegmentDescriptor>>>
                                                   segment_descriptors = 0,
     uint64_t                                      n_null              = 0,
-    ::flatbuffers::Offset<fastlanes::DecimalType> fix_me_decimal_type = 0) {
+    ::flatbuffers::Offset<fastlanes::DecimalType> fix_me_decimal_type = 0,
+    ::flatbuffers::Offset<fastlanes::BinaryValue> min                = 0) {
 	ColumnDescriptorBuilder builder_(_fbb);
 	builder_.add_n_null(n_null);
 	builder_.add_total_size(total_size);
 	builder_.add_column_offset(column_offset);
 	builder_.add_idx(idx);
 	builder_.add_fix_me_decimal_type(fix_me_decimal_type);
+	builder_.add_min(min);
 	builder_.add_segment_descriptors(segment_descriptors);
 	builder_.add_expr_space(expr_space);
 	builder_.add_max(max);
@@ -293,7 +304,8 @@ inline ::flatbuffers::Offset<ColumnDescriptor> CreateColumnDescriptorDirect(
     const std::vector<::flatbuffers::Offset<fastlanes::ExpressionResult>>*  expr_space          = nullptr,
     const std::vector<::flatbuffers::Offset<fastlanes::SegmentDescriptor>>* segment_descriptors = nullptr,
     uint64_t                                                                n_null              = 0,
-    ::flatbuffers::Offset<fastlanes::DecimalType>                           fix_me_decimal_type = 0) {
+    ::flatbuffers::Offset<fastlanes::DecimalType>                           fix_me_decimal_type = 0,
+    ::flatbuffers::Offset<fastlanes::BinaryValue>                           min                = 0) {
 	auto name__     = name ? _fbb.CreateString(name) : 0;
 	auto children__ = children ? _fbb.CreateVector<::flatbuffers::Offset<fastlanes::ColumnDescriptor>>(*children) : 0;
 	auto expr_space__ =
@@ -314,7 +326,8 @@ inline ::flatbuffers::Offset<ColumnDescriptor> CreateColumnDescriptorDirect(
 	                                         expr_space__,
 	                                         segment_descriptors__,
 	                                         n_null,
-	                                         fix_me_decimal_type);
+	                                         fix_me_decimal_type,
+	                                         min);
 }
 
 ::flatbuffers::Offset<ColumnDescriptor>
@@ -375,7 +388,8 @@ inline ColumnDescriptorT::ColumnDescriptorT(const ColumnDescriptorT& o)
     , column_offset(o.column_offset)
     , total_size(o.total_size)
     , n_null(o.n_null)
-    , fix_me_decimal_type((o.fix_me_decimal_type) ? new fastlanes::DecimalTypeT(*o.fix_me_decimal_type) : nullptr) {
+    , fix_me_decimal_type((o.fix_me_decimal_type) ? new fastlanes::DecimalTypeT(*o.fix_me_decimal_type) : nullptr)
+    , min((o.min) ? new fastlanes::BinaryValueT(*o.min) : nullptr) {
 	children.reserve(o.children.size());
 	for (const auto& children_ : o.children) {
 		children.emplace_back((children_) ? new fastlanes::ColumnDescriptorT(*children_) : nullptr);
@@ -404,6 +418,7 @@ inline ColumnDescriptorT& ColumnDescriptorT::operator=(ColumnDescriptorT o) FLAT
 	std::swap(segment_descriptors, o.segment_descriptors);
 	std::swap(n_null, o.n_null);
 	std::swap(fix_me_decimal_type, o.fix_me_decimal_type);
+	std::swap(min, o.min);
 	return *this;
 }
 
@@ -524,6 +539,18 @@ inline void ColumnDescriptor::UnPackTo(ColumnDescriptorT*                       
 			_o->fix_me_decimal_type.reset();
 		}
 	}
+	{
+		auto _e = min();
+		if (_e) {
+			if (_o->min) {
+				_e->UnPackTo(_o->min.get(), _resolver);
+			} else {
+				_o->min = std::unique_ptr<fastlanes::BinaryValueT>(_e->UnPack(_resolver));
+			}
+		} else if (_o->min) {
+			_o->min.reset();
+		}
+	}
 }
 
 inline ::flatbuffers::Offset<ColumnDescriptor>
@@ -583,6 +610,7 @@ CreateColumnDescriptor(::flatbuffers::FlatBufferBuilder&         _fbb,
 	auto _n_null              = _o->n_null;
 	auto _fix_me_decimal_type =
 	    _o->fix_me_decimal_type ? CreateDecimalType(_fbb, _o->fix_me_decimal_type.get(), _rehasher) : 0;
+	auto _min = _o->min ? CreateBinaryValue(_fbb, _o->min.get(), _rehasher) : 0;
 	return fastlanes::CreateColumnDescriptor(_fbb,
 	                                         _data_type,
 	                                         _encoding_rpn,
@@ -595,7 +623,8 @@ CreateColumnDescriptor(::flatbuffers::FlatBufferBuilder&         _fbb,
 	                                         _expr_space,
 	                                         _segment_descriptors,
 	                                         _n_null,
-	                                         _fix_me_decimal_type);
+	                                         _fix_me_decimal_type,
+	                                         _min);
 }
 
 inline const fastlanes::ColumnDescriptor* GetColumnDescriptor(const void* buf) {

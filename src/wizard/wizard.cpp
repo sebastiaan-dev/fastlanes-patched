@@ -49,11 +49,14 @@ struct gather_statistics_visitor {
 
 	template <typename PT>
 	void operator()(const up<TypedCol<PT>>& col) const {
+		column_descriptor.min->binary_data.resize(sizeof(PT));
+		std::memcpy(column_descriptor.min->binary_data.data(), &col->m_stats.min, sizeof(PT));
 		column_descriptor.max->binary_data.resize(sizeof(PT));
 		std::memcpy(column_descriptor.max->binary_data.data(), &col->m_stats.max, sizeof(PT));
 		column_descriptor.n_null = col->m_stats.n_nulls;
 	}
 	void operator()(const up<FLSStrColumn>& str_col) const {
+		column_descriptor.min->binary_data.clear();
 		const auto size = str_col->m_stats.maximum_n_bytes_p_value;
 		column_descriptor.max->binary_data.resize(size);
 		std::memcpy(column_descriptor.max->binary_data.data(), str_col->byte_arr.data(), size);
@@ -85,6 +88,7 @@ void init(vector<up<ColumnDescriptorT>>& column_descriptors) {
 	for (n_t col_idx {0}; col_idx < column_descriptors.size(); col_idx++) {
 		auto& column_descriptor         = column_descriptors[col_idx];
 		column_descriptor->max          = make_unique<BinaryValueT>();
+		column_descriptor->min          = make_unique<BinaryValueT>();
 		column_descriptor->encoding_rpn = make_unique<RPNT>();
 	}
 }
@@ -867,6 +871,10 @@ void expression_check_column(const rowgroup_pt&   rowgroup,
 	}
 	case DataType::FLOAT: {
 		TypedDecide<flt_pt>(rowgroup, column_descriptor, footer, fls);
+		break;
+	}
+	case DataType::DATE: {
+		TypedDecide<int32_t>(rowgroup, column_descriptor, footer, fls);
 		break;
 	}
 	case DataType::BYTE_ARRAY: {
