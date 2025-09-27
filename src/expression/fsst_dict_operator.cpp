@@ -135,7 +135,6 @@ dec_fsst_dict_opr<INDEX_PT>::dec_fsst_dict_opr(const PhysicalExpr& physical_expr
     , index_arr(nullptr) {
 
 	visit(FSSTDictExprVisitor<INDEX_PT> {index_arr}, physical_expr.operators[0]);
-	tmp_string.resize(CFG::String::max_bytes_per_string);
 
 	fsst_header_segment_view.PointTo(0);
 	fsst_bytes_segment_view.PointTo(0);
@@ -190,8 +189,6 @@ void dec_fsst_dict_opr<INDEX_PT>::Decode(vector<uint8_t>& byte_arr_vec, vector<o
 
 		const auto decoded_size = static_cast<ofs_t>(fsst_decompress(
 		    &fsst_decoder, length, in_byte_arr + offset, CFG::String::max_bytes_per_string, tmp_string.data()));
-
-		FLS_ASSERT_L(decoded_size, tmp_string.capacity())
 
 		length_pointer[idx] = decoded_size;
 
