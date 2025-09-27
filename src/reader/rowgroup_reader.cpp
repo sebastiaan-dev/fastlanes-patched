@@ -34,10 +34,174 @@ RowgroupReader::RowgroupReader(const path&                file_path,
     , m_rowgroup_descriptor(rowgroup_descriptor)
     , m_column_ids(column_ids) {
 
+	// constexpr uint64_t GAP_TO_MERGE   = 128ull * 1024;      // merge gaps ≤ 128 KiB
+	// constexpr uint64_t MAX_MERGE_READ = 8ull * 1024 * 1024; // cap merged span ≤ 8 MiB
+
 	// read file
+	// {
+	// 	io io_handle = make_unique<File>(file_path);
+	//
+	// 	// We’ll fill this with slices that reference merged read buffers.
+	// 	std::unordered_map<idx_t, ColumnBufferReference> column_map;
+	// 	column_map.reserve(m_column_ids.size());
+	//
+	// 	// We can still keep buffers here if other code expects it, but now they’re merged reads,
+	// 	// not per-column buffers.
+	// 	m_column_bufs.clear();
+	//
+	// 	ThreadPool& pool = IOExecutor::pool();
+	//
+	// 	// 1) Build chunks (one per projected column in this rowgroup)
+	// 	struct Chunk {
+	// 		idx_t    col_idx;
+	// 		uint64_t off; // file offset (absolute)
+	// 		uint64_t len; // bytes to read for this column
+	// 	};
+	// 	std::vector<Chunk> chunks;
+	// 	chunks.reserve(m_column_ids.size());
+	// 	for (const auto& col_idx : m_column_ids) {
+	// 		const auto&    cd         = m_rowgroup_descriptor.m_column_descriptors[col_idx];
+	// 		const uint64_t col_size   = cd->total_size;
+	// 		const uint64_t col_offset = m_rowgroup_descriptor.m_offset + cd->column_offset;
+	// 		chunks.push_back(Chunk {col_idx, col_offset, col_size});
+	// 	}
+	//
+	// 	if (!chunks.empty()) {
+	// 		// 2) Sort by file offset
+	// 		std::sort(chunks.begin(), chunks.end(), [](const Chunk& a, const Chunk& b) { return a.off < b.off; });
+	//
+	// 		// 3) Coalesce into merged reads
+	// 		struct SubSlice {
+	// 			idx_t    col_idx;
+	// 			uint32_t rel;
+	// 			uint32_t len;
+	// 		}; // rel = offset within merged span
+	// 		struct Merged {
+	// 			uint64_t              off;
+	// 			uint64_t              len;
+	// 			std::vector<SubSlice> subs;
+	// 		};
+	// 		std::vector<Merged> merged;
+	// 		merged.reserve(chunks.size());
+	//
+	// 		uint64_t cur_off = chunks[0].off;
+	// 		uint64_t cur_end = chunks[0].off + chunks[0].len;
+	// 		Merged   cur {cur_off, 0, {}};
+	// 		cur.subs.push_back(SubSlice {chunks[0].col_idx, 0u, static_cast<uint32_t>(chunks[0].len)});
+	//
+	// 		auto flush_cur = [&]() {
+	// 			cur.len = cur_end - cur.off;
+	// 			merged.push_back(std::move(cur));
+	// 		};
+	//
+	// 		for (size_t i = 1; i < chunks.size(); ++i) {
+	// 			const auto&    c              = chunks[i];
+	// 			const uint64_t gap            = (c.off > cur_end) ? (c.off - cur_end) : 0;
+	// 			const uint64_t span_if_merged = (c.off + c.len) - cur.off;
+	//
+	// 			const bool can_merge_gap   = gap <= GAP_TO_MERGE;
+	// 			const bool within_max_span = span_if_merged <= MAX_MERGE_READ;
+	//
+	// 			if (can_merge_gap && within_max_span) {
+	// 				// extend current merged span
+	// 				const uint32_t rel = static_cast<uint32_t>(c.off - cur.off);
+	// 				cur.subs.push_back(SubSlice {c.col_idx, rel, static_cast<uint32_t>(c.len)});
+	// 				cur_end = std::max(cur_end, c.off + c.len);
+	// 			} else {
+	// 				// close current, start new
+	// 				flush_cur();
+	// 				cur.off = c.off;
+	// 				cur_end = c.off + c.len;
+	// 				cur.subs.clear();
+	// 				cur.subs.push_back(SubSlice {c.col_idx, 0u, static_cast<uint32_t>(c.len)});
+	// 			}
+	// 		}
+	// 		flush_cur();
+	//
+	// 		// 4) Submit one read per merged span; on completion, populate column_map with slices
+	// 		struct Job {
+	// 			std::shared_ptr<Buf>  buf;
+	// 			std::vector<SubSlice> subs;
+	// 			uint64_t              off;
+	// 		};
+	// 		std::vector<std::future<Job>> futs;
+	// 		futs.reserve(merged.size());
+	//
+	// 		for (auto& m : merged) {
+	// 			futs.emplace_back(pool.submit([&, off = m.off, len = m.len, subs = m.subs]() mutable -> Job {
+	// 				auto merged_buf = std::make_shared<Buf>(len);     // TODO: take from a buffer pool
+	// 				IO::range_read(io_handle, *merged_buf, off, len); // single pread loop
+	// 				return Job {std::move(merged_buf), std::move(subs), off};
+	// 			}));
+	// 		}
+	//
+	// 		// 5) Collect; create per-column views that alias the merged buffer (no copy)
+	// 		for (auto& fut : futs) {
+	// 			Job job = fut.get();
+	//
+	// 			// Keep at least one owner reference around if your code expects m_column_bufs to hold buffers
+	// 			m_column_bufs.push_back(job.buf);
+	//
+	// 			const auto base_span = job.buf->Span(); // std::span<std::byte> or similar
+	// 			for (const auto& s : job.subs) {
+	// 				auto slice_span = base_span.subspan(s.rel, s.len);
+	// 				// aliasing owner keeps merged buffer alive as long as any ColumnBufferReference exists
+	// 				auto owner = std::shared_ptr<void>(job.buf, job.buf.get());
+	// 				column_map.emplace(s.col_idx, ColumnBufferReference {slice_span, std::move(owner)});
+	// 			}
+	// 		}
+	// 	}
+	//
+	// 	m_rowgroup_view = make_unique<RowgroupView>(column_map, m_rowgroup_descriptor);
+	// }
+
+	// // read file
+	// {
+	// 	io io_handle = make_unique<File>(file_path); // your IO variant wrapping File
+	// 	std::unordered_map<idx_t, ColumnBufferReference> column_map;
+	// 	column_map.reserve(m_column_ids.size());
+	// 	m_column_bufs.reserve(m_column_ids.size());
+	//
+	// 	// pool size: min(#cols, HW threads) but at least 1
+	// 	// const size_t hw = std::max(1u, std::thread::hardware_concurrency());
+	// 	// ThreadPool   pool(std::min(m_column_ids.size(), static_cast<size_t>(hw)));
+	// 	ThreadPool* pool_ptr = &IOExecutor::pool();
+	// 	ThreadPool& pool     = *pool_ptr;
+	//
+	// 	struct Job {
+	// 		idx_t                col_idx;
+	// 		std::shared_ptr<Buf> buf;
+	// 	};
+	// 	std::vector<std::future<Job>> futs;
+	// 	futs.reserve(m_column_ids.size());
+	//
+	// 	for (const auto& col_idx : m_column_ids) {
+	// 		const auto& column_descriptor = m_rowgroup_descriptor.m_column_descriptors[col_idx];
+	// 		const auto  column_size       = column_descriptor->total_size;
+	// 		const auto  column_offset     = m_rowgroup_descriptor.m_offset + column_descriptor->column_offset;
+	//
+	// 		futs.emplace_back(pool.submit([&, col_idx, column_size, column_offset]() -> Job {
+	// 			auto buffer = std::make_shared<Buf>(column_size);               // todo[memory_pool]
+	// 			IO::range_read(io_handle, *buffer, column_offset, column_size); // calls File::ReadRange -> pread
+	// 			return Job {col_idx, std::move(buffer)};
+	// 		}));
+	// 	}
+	//
+	// 	// Collect results (order-independent)
+	// 	for (auto& fut : futs) {
+	// 		auto job = fut.get();
+	// 		m_column_bufs.push_back(job.buf);
+	// 		column_map.emplace(job.col_idx,
+	// 		                   ColumnBufferReference {job.buf->Span(), std::shared_ptr<void>(job.buf, job.buf.get())});
+	// 	}
+	//
+	// 	m_rowgroup_view = make_unique<RowgroupView>(column_map, m_rowgroup_descriptor);
+	// }
+
+	IoTracer::get().dump_summary("pread");
 	{
 		// allocate buffer
-		io                                              io = make_unique<File>(file_path); // todo[IO]
+		io                                               io = make_unique<File>(file_path); // todo[IO]
 		std::unordered_map<idx_t, ColumnBufferReference> column_map;
 		column_map.reserve(m_column_ids.size());
 		m_column_bufs.reserve(m_column_ids.size());
@@ -84,8 +248,8 @@ RowgroupReader::RowgroupReader(const path&                file_path,
 	// read file
 	{
 		// allocate buffer
-		io                                              io     = make_unique<File>(file_path); // todo[IO]
-		uint64_t                                        offset = m_rowgroup_descriptor.m_offset;
+		io                                               io     = make_unique<File>(file_path); // todo[IO]
+		uint64_t                                         offset = m_rowgroup_descriptor.m_offset;
 		std::unordered_map<idx_t, ColumnBufferReference> column_map;
 		column_map.reserve(m_column_ids.size());
 
