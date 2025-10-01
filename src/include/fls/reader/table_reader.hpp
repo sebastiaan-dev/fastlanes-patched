@@ -28,6 +28,8 @@ public:
 	[[nodiscard]] up<RowgroupReader> get_rowgroup_reader(n_t rowgroup_idx, const std::vector<idx_t>& column_ids) const;
 	[[nodiscard]] up<RowgroupReader> get_rowgroup_reader(n_t rowgroup_idx) const;
 
+	TableDescriptorT& get_descriptor() const;
+
 	//
 	[[nodiscard]] up<Table> materialize() const;
 	// API: append to the existing csv.

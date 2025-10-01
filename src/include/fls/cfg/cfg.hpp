@@ -26,7 +26,7 @@ public:
 	static constexpr uint64_t VEC_SZ         = 1024;         //
 	static constexpr uint64_t VEC_TUP_C      = 1024;         //
 	static constexpr uint64_t ROW_GROUP_SIZE = 256UL * 1024; //
-	static constexpr uint64_t N_VEC_PER_RG   = 64;           //
+	static constexpr uint64_t N_VEC_PER_RG   = 128;          //
 
 	// Rowgroup
 	struct Defaults {
@@ -35,8 +35,8 @@ public:
 
 	// Rowgroup
 	struct RowGroup {
-		static constexpr uint64_t N_VECTORS_PER_ROWGROUP = 64;
-		static constexpr uint64_t N_VALUES_PER_ROWGROUP  = 64 * 1024;
+		static constexpr uint64_t N_VECTORS_PER_ROWGROUP = 128;
+		static constexpr uint64_t N_VALUES_PER_ROWGROUP  = 128 * 1024;
 	};
 
 	// Rowgroup

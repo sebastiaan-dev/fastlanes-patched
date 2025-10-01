@@ -18,6 +18,7 @@
 #include "fls/table/rowgroup.hpp" // for Rowgroup
 #include <cstdint>
 #include <fls/io/io.hpp>
+#include <iostream>
 #include <memory> // for unique_ptr
 
 namespace fastlanes {
@@ -60,6 +61,24 @@ void Encoder::encode(const Connection& connection, const path& file_path) {
 		buf.Reset();
 	}
 	connection.m_table_descriptor->m_table_binary_size = cur_rowgroup_offset;
+}
+
+void Encoder::encode_rowgroup(Buf& buf, const rowgroup_pt& rowgroup, RowgroupDescriptorT& footer) {
+	// todo: hoist, also check why there is a discrepancy in target vectors and the actual amount
+	std::vector<std::uint8_t> helper_buffer(sizeof(entry_point_t) * footer.m_n_vec);
+
+	for (auto& column_descriptor : footer.m_column_descriptors) {
+		InterpreterState state;
+		auto             physical_expr_up = Interpreter::Encoding::Interpret(*column_descriptor, rowgroup, state);
+		// execute the expression for each vector
+		for (n_t vec_idx {0}; vec_idx < footer.m_n_vec; ++vec_idx) {
+			physical_expr_up->PointTo(vec_idx);
+			ExprExecutor::execute(*physical_expr_up, vec_idx);
+		}
+		physical_expr_up->Finalize();
+		physical_expr_up->Flush(buf, *column_descriptor, helper_buffer.data());
+	}
+	footer.m_size = buf.Size();
 }
 
 } // namespace fastlanes

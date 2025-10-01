@@ -33,6 +33,10 @@ up<RowgroupReader> TableReader::get_rowgroup_reader(const n_t rowgroup_idx) cons
 	return rowgroup_reader;
 }
 
+TableDescriptorT& TableReader::get_descriptor() const {
+	return *m_table_descriptor;
+}
+
 up<Table> TableReader::materialize() const {
 	auto table_up = make_unique<Table>(m_connection);
 
