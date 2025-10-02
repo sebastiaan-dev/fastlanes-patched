@@ -140,6 +140,7 @@ private:
 	up<std::ifstream> m_if_stream;
 	int               fd_ {-1};
 	n_t               file_size_cached_ {0};
+	std::once_flag    open_once_;
 	void              ensure_fd_open_for_read();
 };
 

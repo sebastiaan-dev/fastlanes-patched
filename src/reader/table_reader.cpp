@@ -23,7 +23,7 @@ constexpr static auto const* TABLE_DESCRIPTOR_FILE_NAME {"table_descriptor.fbb"}
 up<RowgroupReader> TableReader::get_rowgroup_reader(const n_t                 rowgroup_idx,
                                                     const std::vector<idx_t>& column_ids) const {
 	auto rowgroup_reader = make_unique<RowgroupReader>(
-	    m_file_path, *m_table_descriptor->m_rowgroup_descriptors[rowgroup_idx], m_connection, column_ids);
+	    io, *m_table_descriptor->m_rowgroup_descriptors[rowgroup_idx], m_connection, column_ids);
 	return rowgroup_reader;
 }
 
@@ -80,6 +80,8 @@ TableReader::TableReader(const path& file_path, Connection& connection)
 
 		m_table_descriptor = make_table_descriptor(file_path.parent_path() / TABLE_DESCRIPTOR_FILE_NAME);
 	}
+
+	io = make_unique<File>(file_path); // todo[IO]
 }
 up<RowgroupReader> TableReader::operator[](const n_t rowgroup_idx) const {
 	auto rowgroup_reader = make_unique<RowgroupReader>(

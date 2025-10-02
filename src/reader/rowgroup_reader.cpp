@@ -26,7 +26,7 @@
 
 namespace fastlanes {
 
-RowgroupReader::RowgroupReader(const path&                file_path,
+RowgroupReader::RowgroupReader(const io&                  io,
                                const RowgroupDescriptorT& rowgroup_descriptor,
                                Connection&                connection,
                                const std::vector<idx_t>&  column_ids)
@@ -198,10 +198,9 @@ RowgroupReader::RowgroupReader(const path&                file_path,
 	// 	m_rowgroup_view = make_unique<RowgroupView>(column_map, m_rowgroup_descriptor);
 	// }
 
-	IoTracer::get().dump_summary("pread");
+	// IoTracer::get().dump_summary("pread");
 	{
 		// allocate buffer
-		io                                               io = make_unique<File>(file_path); // todo[IO]
 		std::unordered_map<idx_t, ColumnBufferReference> column_map;
 		column_map.reserve(m_column_ids.size());
 		m_column_bufs.reserve(m_column_ids.size());

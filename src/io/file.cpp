@@ -117,9 +117,9 @@
 // } // namespace fastlanes
 
 // src/io/file.cpp
-#include "fls/io/file.hpp"
 #include "fls/common/assert.hpp"
 #include "fls/cor/lyt/buf.hpp"
+#include "fls/io/file.hpp"
 #include "fls/std/filesystem.hpp"
 #include "fls/std/string.hpp"
 #include <cstdint>
@@ -147,27 +147,47 @@ File::~File() {
 	}
 }
 
-static inline n_t stat_size(const path& p) {
-	struct stat st {};
-	if (::stat(p.c_str(), &st) != 0) {
-		throw std::system_error(errno, std::generic_category(), "stat failed");
-	}
-	return static_cast<n_t>(st.st_size);
-}
+// static inline n_t stat_size(const path& p) {
+// 	struct stat st {};
+// 	if (::stat(p.c_str(), &st) != 0) {
+// 		throw std::system_error(errno, std::generic_category(), "stat failed");
+// 	}
+// 	return static_cast<n_t>(st.st_size);
+// }
 
-void File::ensure_fd_open_for_read() {
-	if (fd_ >= 0)
-		return;
-	fd_ = ::open(m_path.c_str(), O_RDONLY);
-	if (fd_ < 0) {
-		throw std::system_error(errno, std::generic_category(), "open(O_RDONLY) failed");
+// void File::ensure_fd_open_for_read() {
+// 	if (fd_ >= 0)
+// 		return;
+// 	fd_ = ::open(m_path.c_str(), O_RDONLY);
+// 	if (fd_ < 0) {
+// 		throw std::system_error(errno, std::generic_category(), "open(O_RDONLY) failed");
+// 	}
+// #if defined(__APPLE__)
+// 	// Strided/random reads benefit from disabling sequential readahead
+// 	int one = 0;
+// 	(void)fcntl(fd_, F_RDAHEAD, one); // set to 0 to disable; keep as-is if you prefer kernel defaults
+// #endif
+// 	file_size_cached_ = stat_size(m_path);
+// }
+inline off_t fstat_size(int fd) {
+	struct stat st;
+	if (::fstat(fd, &st) != 0) {
+		throw std::system_error(errno, std::generic_category(), "fstat failed");
 	}
+	return st.st_size;
+}
+void File::ensure_fd_open_for_read() {
+	std::call_once(open_once_, [&] {
+		int fd = ::open(m_path.c_str(), O_RDONLY);
+		if (fd < 0)
+			throw std::system_error(errno, std::generic_category(), "open(O_RDONLY) failed");
 #if defined(__APPLE__)
-	// Strided/random reads benefit from disabling sequential readahead
-	int one = 0;
-	(void)fcntl(fd_, F_RDAHEAD, one); // set to 0 to disable; keep as-is if you prefer kernel defaults
+		int zero = 0;
+		(void)fcntl(fd, F_RDAHEAD, zero); // disable sequential readahead for random
 #endif
-	file_size_cached_ = stat_size(m_path);
+		fd_               = fd;
+		file_size_cached_ = static_cast<n_t>(fstat_size(fd_)); // use fstat, not stat(path)
+	});
 }
 
 void File::Write(const Buf& buf) {
@@ -246,20 +266,20 @@ void File::ReadRange(Buf& buf, const n_t offset, const n_t size) {
 	uint8_t* dst  = buf.mutable_data();
 
 	while (done < size) {
-		uint32_t inflight = IoTracer::get().on_submit();
-		auto     t0       = std::chrono::steady_clock::now();
-		ssize_t  n  = ::pread(fd_, dst + done, static_cast<size_t>(size - done), static_cast<off_t>(offset + done));
-		auto     t1 = std::chrono::steady_clock::now();
-		IoTracer::get().on_complete();
+		// uint32_t inflight = IoTracer::get().on_submit();
+		// auto     t0       = std::chrono::steady_clock::now();
+		ssize_t n = ::pread(fd_, dst + done, static_cast<size_t>(size - done), static_cast<off_t>(offset + done));
+		// auto     t1 = std::chrono::steady_clock::now();
+		// IoTracer::get().on_complete();
 
 		if (n < 0 && errno == EINTR)
 			continue;
 		if (n <= 0)
 			throw std::runtime_error("pread short/failed in ReadRange()");
 
-		auto     dur = std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count();
-		uint64_t ns  = static_cast<uint64_t>(dur);
-		IoTracer::get().record((uint64_t)(offset + done), (uint32_t)n, ns, inflight);
+		// auto     dur = std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count();
+		// uint64_t ns  = static_cast<uint64_t>(dur);
+		// IoTracer::get().record((uint64_t)(offset + done), (uint32_t)n, ns, inflight);
 
 		done += static_cast<n_t>(n);
 	}

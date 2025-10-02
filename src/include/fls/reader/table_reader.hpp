@@ -8,6 +8,7 @@
 
 #include "fls/api/api.hpp"
 #include "fls/common/alias.hpp"
+#include "fls/io/io.hpp"
 #include "fls/std/filesystem.hpp"
 #include "fls/std/string.hpp"
 
@@ -42,6 +43,7 @@ private:
 	up<TableDescriptorT> m_table_descriptor;
 	Connection&          m_connection;
 	const path           m_file_path;
+	io                   io;
 };
 
 } // namespace fastlanes
