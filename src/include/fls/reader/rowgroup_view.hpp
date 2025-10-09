@@ -8,8 +8,9 @@
 
 #include "fls/std/span.hpp"
 #include "fls/std/vector.hpp"
+#include <cstddef>
 #include <memory>
-#include <unordered_map>
+#include <optional>
 
 namespace fastlanes {
 /*--------------------------------------------------------------------------------------------------------------------*/
@@ -24,15 +25,15 @@ struct ColumnBufferReference {
 
 class RowgroupView {
 public:
-	explicit RowgroupView(std::unordered_map<idx_t, ColumnBufferReference> map, const RowgroupDescriptorT& footer);
+	explicit RowgroupView(const std::vector<std::optional<ColumnBufferReference>>& cols_by_id,
+	                      const RowgroupDescriptorT&                               footer);
 
 public:
 	ColumnView&       operator[](n_t col_idx);
 	const ColumnView& operator[](n_t col_idx) const;
 
 public:
-	vector<up<ColumnView>>           columns;
-	std::unordered_map<n_t, idx_t> col_to_pos;
+	vector<up<ColumnView>> columns;
 };
 
 } // namespace fastlanes

@@ -9,33 +9,37 @@
 #include "fls/footer/rowgroup_descriptor_generated.h"
 #include "fls/reader/column_view.hpp"
 #include "fls/std/span.hpp"
-#include <cstddef> // for std::byte
+#include <cstddef>  // for std::byte
+#include <optional> // for std::optional
 
 namespace fastlanes {
 
-RowgroupView::RowgroupView(std::unordered_map<idx_t, ColumnBufferReference> map,
-                           const RowgroupDescriptorT& footer) {
-	col_to_pos.reserve(map.size());
+RowgroupView::RowgroupView(const std::vector<std::optional<ColumnBufferReference>>& cols_by_id,
+                           const RowgroupDescriptorT&                               footer) {
+	columns.resize(cols_by_id.size());
 
-	for (const auto& [id, data] : map) {
-		const auto& column_descriptor = footer.m_column_descriptors.at(id);
-		columns.emplace_back(std::make_unique<ColumnView>(
-		    data.data, *column_descriptor, footer, column_descriptor->column_offset, data.owner));
-		col_to_pos.emplace(id, columns.size() - 1);
+	for (idx_t id = 0; id < static_cast<idx_t>(cols_by_id.size()); ++id) {
+		if (!cols_by_id[id])
+			continue;
+
+		const auto& [data, owner] = *cols_by_id[id];
+		const auto& cd            = *footer.m_column_descriptors.at(id);
+
+		columns[id] = std::make_unique<ColumnView>(data, cd, footer, cd.column_offset, owner);
 	}
 }
 
 ColumnView& RowgroupView::operator[](const n_t col_idx) {
 	FLS_ASSERT_NOT_EMPTY_VEC(columns)
+	// FLS_ASSERT(columns[col_idx] != nullptr)
 
-	const auto pos_idx = col_to_pos.at(col_idx);
-	return *columns[pos_idx];
+	return *columns[col_idx];
 }
 
 const ColumnView& RowgroupView::operator[](const n_t col_idx) const {
 	FLS_ASSERT_NOT_EMPTY_VEC(columns)
+	// FLS_ASSERT(columns[col_idx] != nullptr)
 
-	const auto pos_idx = col_to_pos.at(col_idx);
-	return *columns[pos_idx];
+	return *columns[col_idx];
 }
 } // namespace fastlanes

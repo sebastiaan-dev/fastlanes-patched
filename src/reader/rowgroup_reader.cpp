@@ -23,6 +23,7 @@
 #include "fls/table/chunk.hpp" // for Chunk
 #include <memory>              // for make_unique, uniqu...
 #include <numeric>
+#include <optional>
 
 namespace fastlanes {
 
@@ -200,25 +201,46 @@ RowgroupReader::RowgroupReader(const io&                  io,
 
 	// IoTracer::get().dump_summary("pread");
 	{
-		// allocate buffer
-		std::unordered_map<idx_t, ColumnBufferReference> column_map;
-		column_map.reserve(m_column_ids.size());
+		const size_t n_physical_cols = m_rowgroup_descriptor.m_column_descriptors.size();
+		std::vector<std::optional<ColumnBufferReference>> columns(n_physical_cols);
+
 		m_column_bufs.reserve(m_column_ids.size());
 
 		for (const auto& col_idx : m_column_ids) {
-			auto& column_descriptor = m_rowgroup_descriptor.m_column_descriptors[col_idx];
-			auto  column_size       = column_descriptor->total_size;
-			auto  column_offset     = m_rowgroup_descriptor.m_offset + column_descriptor->column_offset;
+			auto& cd         = m_rowgroup_descriptor.m_column_descriptors[col_idx];
+			auto  col_size   = cd->total_size;
+			auto  col_offset = m_rowgroup_descriptor.m_offset + cd->column_offset;
 
-			auto buffer = std::make_shared<Buf>(column_size); // todo[memory_pool]
-			IO::range_read(io, *buffer, column_offset, column_size);
+			auto buffer = std::make_shared<Buf>(col_size); // todo[memory_pool]
+			IO::range_read(io, *buffer, col_offset, col_size);
 			m_column_bufs.push_back(buffer);
-			column_map.emplace(col_idx,
-			                   ColumnBufferReference {buffer->Span(), std::shared_ptr<void>(buffer, buffer.get())});
+
+			columns[col_idx] = ColumnBufferReference {buffer->Span(), std::shared_ptr<void>(buffer, buffer.get())};
 		}
 
-		m_rowgroup_view = make_unique<RowgroupView>(column_map, m_rowgroup_descriptor);
+		m_rowgroup_view = make_unique<RowgroupView>(columns, m_rowgroup_descriptor);
 	}
+
+	// {
+	// 	// allocate buffer
+	// 	std::unordered_map<idx_t, ColumnBufferReference> column_map;
+	// 	column_map.reserve(m_column_ids.size());
+	// 	m_column_bufs.reserve(m_column_ids.size());
+	//
+	// 	for (const auto& col_idx : m_column_ids) {
+	// 		auto& column_descriptor = m_rowgroup_descriptor.m_column_descriptors[col_idx];
+	// 		auto  column_size       = column_descriptor->total_size;
+	// 		auto  column_offset     = m_rowgroup_descriptor.m_offset + column_descriptor->column_offset;
+	//
+	// 		auto buffer = std::make_shared<Buf>(column_size); // todo[memory_pool]
+	// 		IO::range_read(io, *buffer, column_offset, column_size);
+	// 		m_column_bufs.push_back(buffer);
+	// 		column_map.emplace(col_idx,
+	// 		                   ColumnBufferReference {buffer->Span(), std::shared_ptr<void>(buffer, buffer.get())});
+	// 	}
+	//
+	// 	m_rowgroup_view = make_unique<RowgroupView>(column_map, m_rowgroup_descriptor);
+	// }
 
 	// init level 1 expression
 	{
@@ -246,26 +268,47 @@ RowgroupReader::RowgroupReader(const path&                file_path,
 
 	// read file
 	{
-		// allocate buffer
-		io                                               io     = make_unique<File>(file_path); // todo[IO]
-		uint64_t                                         offset = m_rowgroup_descriptor.m_offset;
-		std::unordered_map<idx_t, ColumnBufferReference> column_map;
-		column_map.reserve(m_column_ids.size());
+		io           io              = make_unique<File>(file_path);
+		const size_t n_physical_cols = m_rowgroup_descriptor.m_column_descriptors.size();
+		std::vector<std::optional<ColumnBufferReference>> columns(n_physical_cols);
+
+		m_column_bufs.reserve(m_column_ids.size());
 
 		for (const auto& col_idx : m_column_ids) {
-			auto& column_descriptor = m_rowgroup_descriptor.m_column_descriptors[col_idx];
-			auto  column_size       = column_descriptor->total_size;
+			auto& cd         = m_rowgroup_descriptor.m_column_descriptors[col_idx];
+			auto  col_size   = cd->total_size;
+			auto  col_offset = m_rowgroup_descriptor.m_offset + cd->column_offset;
 
-			auto buffer = std::make_shared<Buf>(column_size); // todo[memory_pool]
-			IO::range_read(io, *buffer, offset, column_size);
-			offset += column_size;
+			auto buffer = std::make_shared<Buf>(col_size); // todo[memory_pool]
+			IO::range_read(io, *buffer, col_offset, col_size);
 			m_column_bufs.push_back(buffer);
-			column_map.emplace(col_idx,
-			                   ColumnBufferReference {buffer->Span(), std::shared_ptr<void>(buffer, buffer.get())});
+
+			columns[col_idx] = ColumnBufferReference {buffer->Span(), std::shared_ptr<void>(buffer, buffer.get())};
 		}
 
-		m_rowgroup_view = make_unique<RowgroupView>(column_map, m_rowgroup_descriptor);
+		m_rowgroup_view = make_unique<RowgroupView>(columns, m_rowgroup_descriptor);
 	}
+	// {
+	// 	// allocate buffer
+	// 	io                                               io     = make_unique<File>(file_path); // todo[IO]
+	// 	uint64_t                                         offset = m_rowgroup_descriptor.m_offset;
+	// 	std::unordered_map<idx_t, ColumnBufferReference> column_map;
+	// 	column_map.reserve(m_column_ids.size());
+	//
+	// 	for (const auto& col_idx : m_column_ids) {
+	// 		auto& column_descriptor = m_rowgroup_descriptor.m_column_descriptors[col_idx];
+	// 		auto  column_size       = column_descriptor->total_size;
+	//
+	// 		auto buffer = std::make_shared<Buf>(column_size); // todo[memory_pool]
+	// 		IO::range_read(io, *buffer, offset, column_size);
+	// 		offset += column_size;
+	// 		m_column_bufs.push_back(buffer);
+	// 		column_map.emplace(col_idx,
+	// 		                   ColumnBufferReference {buffer->Span(), std::shared_ptr<void>(buffer, buffer.get())});
+	// 	}
+	//
+	// 	m_rowgroup_view = make_unique<RowgroupView>(column_map, m_rowgroup_descriptor);
+	// }
 
 	// init level 1 expression[
 	{
