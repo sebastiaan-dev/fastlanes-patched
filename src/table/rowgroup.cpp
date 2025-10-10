@@ -22,10 +22,9 @@
 #include "fls/std/vector.hpp"
 #include "fls/table/attribute.hpp"
 #include "fls/table/chunk.hpp"
-#include <cassert> // if you use asserts, or your macros depend on it
-#include <cstdint> // int8_t, int16_t, int32_t, uint8_t, uint16_t, uint32_t, uint64_t
-#include <fstream> // std::ifstream
-#include <iostream>
+#include <cassert>     // if you use asserts, or your macros depend on it
+#include <cstdint>     // int8_t, int16_t, int32_t, uint8_t, uint16_t, uint32_t, uint64_t
+#include <fstream>     // std::ifstream
 #include <limits>      // std::numeric_limits
 #include <ostream>     // std::ostream
 #include <stdexcept>   // std::runtime_error
@@ -96,9 +95,6 @@ col_pt init_logical_columns(const ColumnDescriptorT& col_descriptor) {
 	case DataType::BOOLEAN:
 		return make_unique<u08_col_t>();
 	default:
-		auto dtype = static_cast<DataType>(col_descriptor.data_type);
-
-		std::cout << ToStr(dtype) << std::endl;
 		FLS_UNREACHABLE();
 	}
 
@@ -114,7 +110,7 @@ void init_logical_columns(const ColumnDescriptors& footer, rowgroup_pt& columns)
 }
 
 Rowgroup::Rowgroup(const RowgroupDescriptorT& footer, n_t capacity)
-    : m_descriptor(footer)
+    : m_descriptor(footer) // RowgroupDescriptor -> RowgroupDescriptorT
     , n_tup(footer.m_n_tuples)
     , capacity(capacity) {
 	init_logical_columns(footer.m_column_descriptors, internal_rowgroup);
@@ -658,15 +654,6 @@ n_t Rowgroup::VecCount() const {
 n_t Rowgroup::ColCount() const {
 	/**/
 	return m_descriptor.m_column_descriptors.size();
-}
-
-template <typename T>
-std::string typee_name() {
-	int         status    = 0;
-	char*       demangled = abi::__cxa_demangle(typeid(T).name(), nullptr, nullptr, &status);
-	std::string result    = (status == 0 && demangled) ? demangled : typeid(T).name();
-	free(demangled);
-	return result;
 }
 
 /*--------------------------------------------------------------------------------------------------------------------*\

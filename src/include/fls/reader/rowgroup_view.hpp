@@ -14,7 +14,7 @@
 
 namespace fastlanes {
 /*--------------------------------------------------------------------------------------------------------------------*/
-struct RowgroupDescriptorT;
+struct RowgroupDescriptor;
 class ColumnView;
 
 struct ColumnBufferReference {
@@ -26,7 +26,7 @@ struct ColumnBufferReference {
 class RowgroupView {
 public:
 	explicit RowgroupView(const std::vector<std::optional<ColumnBufferReference>>& cols_by_id,
-	                      const RowgroupDescriptorT&                               footer);
+	                      const RowgroupDescriptor&                                footer);
 
 public:
 	ColumnView&       operator[](n_t col_idx);

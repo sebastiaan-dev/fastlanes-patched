@@ -15,7 +15,7 @@
 namespace fastlanes {
 
 RowgroupView::RowgroupView(const std::vector<std::optional<ColumnBufferReference>>& cols_by_id,
-                           const RowgroupDescriptorT&                               footer) {
+                           const RowgroupDescriptor&                               footer) {
 	columns.resize(cols_by_id.size());
 
 	for (idx_t id = 0; id < static_cast<idx_t>(cols_by_id.size()); ++id) {
@@ -23,22 +23,20 @@ RowgroupView::RowgroupView(const std::vector<std::optional<ColumnBufferReference
 			continue;
 
 		const auto& [data, owner] = *cols_by_id[id];
-		const auto& cd            = *footer.m_column_descriptors.at(id);
+		const auto& cd            = *footer.m_column_descriptors()->Get(id);
 
-		columns[id] = std::make_unique<ColumnView>(data, cd, footer, cd.column_offset, owner);
+		columns[id] = std::make_unique<ColumnView>(data, cd, footer, cd.column_offset(), owner);
 	}
 }
 
 ColumnView& RowgroupView::operator[](const n_t col_idx) {
 	FLS_ASSERT_NOT_EMPTY_VEC(columns)
-	// FLS_ASSERT(columns[col_idx] != nullptr)
 
 	return *columns[col_idx];
 }
 
 const ColumnView& RowgroupView::operator[](const n_t col_idx) const {
 	FLS_ASSERT_NOT_EMPTY_VEC(columns)
-	// FLS_ASSERT(columns[col_idx] != nullptr)
 
 	return *columns[col_idx];
 }

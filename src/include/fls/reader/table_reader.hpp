@@ -16,7 +16,9 @@ namespace fastlanes {
 /*--------------------------------------------------------------------------------------------------------------------*/
 class Connection;
 class RowgroupReader;
+class TableDescriptorHandle;
 struct TableDescriptorT;
+struct TableDescriptor;
 class Table;
 /*--------------------------------------------------------------------------------------------------------------------*/
 class FLS_API TableReader {
@@ -29,7 +31,7 @@ public:
 	[[nodiscard]] up<RowgroupReader> get_rowgroup_reader(n_t rowgroup_idx, const std::vector<idx_t>& column_ids) const;
 	[[nodiscard]] up<RowgroupReader> get_rowgroup_reader(n_t rowgroup_idx) const;
 
-	TableDescriptorT& get_descriptor() const;
+	const TableDescriptor& get_descriptor() const;
 
 	//
 	[[nodiscard]] up<Table> materialize() const;
@@ -40,10 +42,11 @@ public:
 	void to_csv(const char* file_path) const;
 
 private:
-	up<TableDescriptorT> m_table_descriptor;
-	Connection&          m_connection;
-	const path           m_file_path;
-	io                   io;
+	up<TableDescriptorHandle> m_table_descriptor_handle;
+	up<TableDescriptorT>      m_table_descriptor;
+	Connection&               m_connection;
+	const path                m_file_path;
+	io                        io;
 };
 
 } // namespace fastlanes

@@ -28,7 +28,7 @@
 namespace fastlanes {
 
 RowgroupReader::RowgroupReader(const io&                  io,
-                               const RowgroupDescriptorT& rowgroup_descriptor,
+                               const RowgroupDescriptor& rowgroup_descriptor,
                                Connection&                connection,
                                const std::vector<idx_t>&  column_ids)
     : m_connection(connection)
@@ -201,15 +201,15 @@ RowgroupReader::RowgroupReader(const io&                  io,
 
 	// IoTracer::get().dump_summary("pread");
 	{
-		const size_t n_physical_cols = m_rowgroup_descriptor.m_column_descriptors.size();
+		const size_t n_physical_cols = m_rowgroup_descriptor.m_column_descriptors()->size();
 		std::vector<std::optional<ColumnBufferReference>> columns(n_physical_cols);
 
 		m_column_bufs.reserve(m_column_ids.size());
 
 		for (const auto& col_idx : m_column_ids) {
-			auto& cd         = m_rowgroup_descriptor.m_column_descriptors[col_idx];
-			auto  col_size   = cd->total_size;
-			auto  col_offset = m_rowgroup_descriptor.m_offset + cd->column_offset;
+			const auto& cd         = m_rowgroup_descriptor.m_column_descriptors()->Get(col_idx);
+			auto  col_size   = cd->total_size();
+			auto  col_offset = m_rowgroup_descriptor.m_offset() + cd->column_offset();
 
 			auto buffer = std::make_shared<Buf>(col_size); // todo[memory_pool]
 			IO::range_read(io, *buffer, col_offset, col_size);
@@ -246,7 +246,7 @@ RowgroupReader::RowgroupReader(const io&                  io,
 	{
 		m_expressions.reserve(m_column_ids.size());
 		for (const auto& col_idx : m_column_ids) {
-			auto& column_descriptor = m_rowgroup_descriptor.m_column_descriptors[col_idx];
+			const auto& column_descriptor = m_rowgroup_descriptor.m_column_descriptors()->Get(col_idx);
 			auto& column_view       = (*m_rowgroup_view)[col_idx];
 
 			InterpreterState state;
@@ -258,26 +258,26 @@ RowgroupReader::RowgroupReader(const io&                  io,
 }
 
 RowgroupReader::RowgroupReader(const path&                file_path,
-                               const RowgroupDescriptorT& rowgroup_descriptor,
+                               const RowgroupDescriptor& rowgroup_descriptor,
                                Connection&                connection)
     : m_connection(connection)
     , m_rowgroup_descriptor(rowgroup_descriptor) {
 
-	m_column_ids.resize(m_rowgroup_descriptor.m_column_descriptors.size());
+	m_column_ids.resize(m_rowgroup_descriptor.m_column_descriptors()->size());
 	std::iota(m_column_ids.begin(), m_column_ids.end(), idx_t {0});
 
 	// read file
 	{
 		io           io              = make_unique<File>(file_path);
-		const size_t n_physical_cols = m_rowgroup_descriptor.m_column_descriptors.size();
+		const size_t n_physical_cols = m_rowgroup_descriptor.m_column_descriptors()->size();
 		std::vector<std::optional<ColumnBufferReference>> columns(n_physical_cols);
 
 		m_column_bufs.reserve(m_column_ids.size());
 
 		for (const auto& col_idx : m_column_ids) {
-			auto& cd         = m_rowgroup_descriptor.m_column_descriptors[col_idx];
-			auto  col_size   = cd->total_size;
-			auto  col_offset = m_rowgroup_descriptor.m_offset + cd->column_offset;
+			const auto& cd         = m_rowgroup_descriptor.m_column_descriptors()->Get(col_idx);
+			auto  col_size   = cd->total_size();
+			auto  col_offset = m_rowgroup_descriptor.m_offset() + cd->column_offset();
 
 			auto buffer = std::make_shared<Buf>(col_size); // todo[memory_pool]
 			IO::range_read(io, *buffer, col_offset, col_size);
@@ -314,7 +314,7 @@ RowgroupReader::RowgroupReader(const path&                file_path,
 	{
 		m_expressions.reserve(m_column_ids.size());
 		for (const auto& col_idx : m_column_ids) {
-			auto& column_descriptor = m_rowgroup_descriptor.m_column_descriptors[col_idx];
+			const auto& column_descriptor = m_rowgroup_descriptor.m_column_descriptors()->Get(col_idx);
 			auto& column_view       = (*m_rowgroup_view)[col_idx];
 
 			InterpreterState state;
@@ -326,8 +326,8 @@ RowgroupReader::RowgroupReader(const path&                file_path,
 }
 
 vector<sp<PhysicalExpr>>& RowgroupReader::get_chunk(const n_t vec_idx) {
-	for (idx_t i {0}; i < m_column_ids.size(); i++) {
-		auto& physical_expr = *m_expressions[i];
+	for (idx_t expr_idx {0}; expr_idx < m_expressions.size(); ++expr_idx) {
+		auto& physical_expr = *m_expressions[expr_idx];
 		ExprExecutor::smart_execute(physical_expr, vec_idx);
 	}
 	return m_expressions;
@@ -336,19 +336,24 @@ vector<sp<PhysicalExpr>>& RowgroupReader::get_chunk(const n_t vec_idx) {
 void RowgroupReader::reset() {
 }
 
-const RowgroupDescriptorT& RowgroupReader::get_descriptor() const {
+const RowgroupDescriptor& RowgroupReader::get_descriptor() const {
 	return m_rowgroup_descriptor;
 }
 
 up<Rowgroup> RowgroupReader::materialize() {
+	// Convert FlatBuffers table -> native T
+	auto rg_native = up<RowgroupDescriptorT>(m_rowgroup_descriptor.UnPack());
+
+	// Construct Rowgroup from the native descriptor
 	// TODO: Capacity is not used
-	auto               rowgroup_up = std::make_unique<Rowgroup>(m_rowgroup_descriptor, 0);
+	auto rowgroup_up = std::make_unique<Rowgroup>(*rg_native, 0);
 	const Materializer materializer {*rowgroup_up};
 
-	for (n_t vec_idx {0}; vec_idx < m_rowgroup_descriptor.m_n_vec; vec_idx++) {
+	const n_t n_vec = static_cast<n_t>(m_rowgroup_descriptor.m_n_vec());
+	for (n_t vec_idx {0}; vec_idx < n_vec; vec_idx++) {
 		auto& expressions = get_chunk(vec_idx);
 		materializer.Materialize(expressions, vec_idx);
-	};
+	}
 
 	// materializer.rowgroup.Cast();
 	materializer.rowgroup.Finalize();

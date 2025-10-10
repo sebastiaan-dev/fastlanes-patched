@@ -14,7 +14,6 @@
 #include "fls/std/filesystem.hpp" // for path
 #include "fls/std/vector.hpp"     // for vector
 #include "fls/table/chunk.hpp"    // for Chunk
-#include <memory>
 
 namespace fastlanes {
 /*--------------------------------------------------------------------------------------------------------------------*/
@@ -24,11 +23,11 @@ class Rowgroup;
 /*--------------------------------------------------------------------------------------------------------------------*/
 class RowgroupReader {
 public:
-	explicit RowgroupReader(const io&                        io,
-	                        const RowgroupDescriptorT& rowgroup_descriptor,
-	                        Connection&                fls,
-	                        const std::vector<idx_t>&  column_ids);
-	explicit RowgroupReader(const path& file_path, const RowgroupDescriptorT& rowgroup_descriptor, Connection& fls);
+	explicit RowgroupReader(const io&                 io,
+	                        const RowgroupDescriptor& rowgroup_descriptor,
+	                        Connection&               fls,
+	                        const std::vector<idx_t>& column_ids);
+	explicit RowgroupReader(const path& file_path, const RowgroupDescriptor& rowgroup_descriptor, Connection& fls);
 
 public:
 	vector<sp<PhysicalExpr>>& get_chunk(n_t vec_idx);
@@ -39,7 +38,7 @@ public:
 	///
 	void to_csv(const path& dir_path);
 	///
-	[[nodiscard]] const RowgroupDescriptorT& get_descriptor() const;
+	[[nodiscard]] const RowgroupDescriptor& get_descriptor() const;
 	///!
 	[[nodiscard]] vector<string> get_column_names() const;
 	///
@@ -54,7 +53,7 @@ private:
 	void NormalizeColumnIds();
 
 	Connection&                       m_connection;
-	const RowgroupDescriptorT&        m_rowgroup_descriptor;
+	const RowgroupDescriptor&         m_rowgroup_descriptor;
 	std::vector<std::shared_ptr<Buf>> m_column_bufs;
 	up<RowgroupView>                  m_rowgroup_view;
 	std::vector<idx_t>                m_column_ids;

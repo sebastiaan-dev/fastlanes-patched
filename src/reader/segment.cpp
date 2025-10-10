@@ -19,7 +19,6 @@
 #include <limits> // for std::numeric_limits
 #include <span>
 #include <stdexcept>
-#include <memory>
 #include <variant>
 
 namespace fastlanes {
@@ -238,25 +237,22 @@ template u08_pt* Segment::GetFixedSizeArray<u08_pt>(n_t length);
  * make_segment_view
 \*--------------------------------------------------------------------------------------------------------------------*/
 SegmentView make_segment_view(span<std::byte> column_span,
-                              const SegmentDescriptorT& segment_descriptor,
+                              const SegmentDescriptor& segment_descriptor,
                               uint64_t                  column_offset,
                               std::shared_ptr<void>     owner) {
-	FLS_ASSERT_LE(column_offset, segment_descriptor.entrypoint_offset);
-	FLS_ASSERT_LE(column_offset, segment_descriptor.data_offset);
+	const auto local_entry_offset = segment_descriptor.entrypoint_offset() - column_offset;
+	const auto local_data_offset  = segment_descriptor.data_offset() - column_offset;
 
-	const auto local_entry_offset = segment_descriptor.entrypoint_offset - column_offset;
-	const auto local_data_offset  = segment_descriptor.data_offset - column_offset;
+	auto segment_span = column_span.subspan(local_entry_offset, segment_descriptor.entrypoint_size());
 
-	auto segment_span = column_span.subspan(local_entry_offset, segment_descriptor.entrypoint_size);
-
-	switch (segment_descriptor.entry_point_t) {
+	switch (segment_descriptor.entry_point_t()) {
 	case EntryPointType::UINT8: {
 		const auto entry_point_span =
 		    std::span<uint8_t>(reinterpret_cast<uint8_t*>(segment_span.data()), segment_span.size() / sizeof(uint8_t));
 
 		auto entry_point_view = EntryPointView<uint8_t>(entry_point_span);
 
-		const auto data_span = column_span.subspan(local_data_offset, segment_descriptor.data_size);
+		const auto data_span = column_span.subspan(local_data_offset, segment_descriptor.data_size());
 		return SegmentView {entry_point_view, data_span, owner};
 	}
 	case EntryPointType::UINT16: {
@@ -265,7 +261,7 @@ SegmentView make_segment_view(span<std::byte> column_span,
 
 		auto entry_point_view = EntryPointView<uint16_t>(entry_point_span);
 
-		const auto data_span = column_span.subspan(local_data_offset, segment_descriptor.data_size);
+		const auto data_span = column_span.subspan(local_data_offset, segment_descriptor.data_size());
 		return SegmentView {entry_point_view, data_span, owner};
 	}
 	case EntryPointType::UINT32: {
@@ -274,7 +270,7 @@ SegmentView make_segment_view(span<std::byte> column_span,
 
 		auto entry_point_view = EntryPointView<uint32_t>(entry_point_span);
 
-		const auto data_span = column_span.subspan(local_data_offset, segment_descriptor.data_size);
+		const auto data_span = column_span.subspan(local_data_offset, segment_descriptor.data_size());
 		return SegmentView {entry_point_view, data_span, owner};
 	}
 	case EntryPointType::UINT64:
