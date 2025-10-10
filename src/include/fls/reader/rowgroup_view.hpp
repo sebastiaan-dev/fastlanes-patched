@@ -8,16 +8,25 @@
 
 #include "fls/std/span.hpp"
 #include "fls/std/vector.hpp"
+#include <cstddef>
+#include <memory>
+#include <optional>
 
 namespace fastlanes {
 /*--------------------------------------------------------------------------------------------------------------------*/
 struct RowgroupDescriptor;
 class ColumnView;
+
+struct ColumnBufferReference {
+	span<std::byte>       data;
+	std::shared_ptr<void> owner;
+};
 /*--------------------------------------------------------------------------------------------------------------------*/
 
 class RowgroupView {
 public:
-	explicit RowgroupView(span<std::byte> ptr, const RowgroupDescriptor& footer);
+	explicit RowgroupView(const std::vector<std::optional<ColumnBufferReference>>& cols_by_id,
+	                      const RowgroupDescriptor&                                footer);
 
 public:
 	ColumnView&       operator[](n_t col_idx);

@@ -53,11 +53,45 @@ Reader::Reader(const path& dir_path, Connection& fls) {
 	}
 }
 
+// vector<sp<PhysicalExpr>>& Reader::get_chunk(const n_t vec_idx) {
+// 	// FIXME: Does this execute for all columns even though we are only interested in a subset?
+// 	// Does this not conflict with indexing in the scan?
+// 	for (n_t col_idx {0}; col_idx < m_footer->size(); ++col_idx) {
+// 		auto& physical_expr = *m_expressions[col_idx];
+// 		ExprExecutor::smart_execute(physical_expr, vec_idx);
+// 	}
+// 	return m_expressions;
+// }
+
 vector<sp<PhysicalExpr>>& Reader::get_chunk(const n_t vec_idx) {
-	for (n_t col_idx {0}; col_idx < m_footer->size(); ++col_idx) {
-		auto& physical_expr = *m_expressions[col_idx];
-		ExprExecutor::smart_execute(physical_expr, vec_idx);
+	const n_t ncols = static_cast<n_t>(m_footer->size());
+	if (ncols == 0)
+		return m_expressions;
+
+	ThreadPool& pool = ExecPool::pool(); // use your existing pool
+
+	std::vector<std::future<void>> futs;
+	futs.reserve(ncols);
+
+	for (n_t col_idx = 0; col_idx < ncols; ++col_idx) {
+		// capture col_idx by value!
+		futs.emplace_back(
+		    pool.submit([this, vec_idx, col_idx]() { ExprExecutor::smart_execute(*m_expressions[col_idx], vec_idx); }));
 	}
+
+	// wait & rethrow first exception if any
+	std::exception_ptr eptr = nullptr;
+	for (auto& f : futs) {
+		try {
+			f.get();
+		} catch (...) {
+			if (!eptr)
+				eptr = std::current_exception();
+		}
+	}
+	if (eptr)
+		std::rethrow_exception(eptr);
+
 	return m_expressions;
 }
 

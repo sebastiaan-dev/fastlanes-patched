@@ -108,11 +108,11 @@ void init_logical_columns(const ColumnDescriptors& footer, rowgroup_pt& columns)
 		columns.emplace_back(init_logical_columns(*col_descriptor));
 	}
 }
-Rowgroup::Rowgroup(const RowgroupDescriptorT& footer, const Connection& connection)
+
+Rowgroup::Rowgroup(const RowgroupDescriptorT& footer, n_t capacity)
     : m_descriptor(footer) // RowgroupDescriptor -> RowgroupDescriptorT
     , n_tup(footer.m_n_tuples)
-    , m_connection(connection)
-    , capacity(connection.m_config->n_vector_per_rowgroup * CFG::VEC_SZ) {
+    , capacity(capacity) {
 	init_logical_columns(footer.m_column_descriptors, internal_rowgroup);
 }
 
@@ -368,6 +368,10 @@ void cast(rowgroup_pt& rowgroup, ColumnDescriptorT& column_descriptor) {
 			          }
 		          },
 		          [&]<typename PT>(up<TypedCol<PT>>& typed_col) {
+			          if (column_descriptor.data_type == DataType::DATE) {
+				          should_be_cast = false;
+				          return;
+			          }
 			          if (column_descriptor.data_type == DataType::DECIMAL) {
 				          column_descriptor.data_type = DataType::INT64;
 				          should_be_cast              = true;
@@ -418,7 +422,7 @@ void Rowgroup::Cast() {
 }
 
 void Rowgroup::Init() {
-	for (n_t col_idx {0}; col_idx < m_descriptor.m_size; col_idx++) {
+	for (n_t col_idx {0}; col_idx < m_descriptor.m_column_descriptors.size(); col_idx++) {
 		auto& column_descriptor = m_descriptor.m_column_descriptors[col_idx];
 		column_descriptor->idx  = col_idx;
 	}

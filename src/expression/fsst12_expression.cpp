@@ -119,6 +119,7 @@ dec_fsst12_opr::dec_fsst12_opr(PhysicalExpr& physical_expr, const ColumnView& co
 	fsst12_header_segment_view.PointTo(0);
 	[[maybe_unused]] auto symbol_table_size =
 	    fsst12_import(&fsst12_decoder, reinterpret_cast<uint8_t*>(fsst12_header_segment_view.data));
+	header_owner = fsst12_header_segment_view.owner;
 
 	FLS_ASSERT_E(symbol_table_size, fsst12_header_segment_view.data_span.size())
 
@@ -127,6 +128,7 @@ dec_fsst12_opr::dec_fsst12_opr(PhysicalExpr& physical_expr, const ColumnView& co
 
 void dec_fsst12_opr::PointTo(const n_t vec_n) {
 	fsst12_bytes_segment_view.PointTo(vec_n);
+	bytes_owner = fsst12_bytes_segment_view.owner;
 }
 
 void dec_fsst12_opr::Decode(vector<uint8_t>& byte_arr_vec, vector<ofs_t>& length_vec) {
@@ -166,5 +168,11 @@ void dec_fsst12_opr::Decode(vector<uint8_t>& byte_arr_vec, vector<ofs_t>& length
 
 	//
 	FLS_ASSERT_NOT_NULL_POINTER(length_pointer)
+}
+
+OwnedSpan<const std::byte> dec_fsst12_opr::GetEncodedBytes() const {
+	const auto size = static_cast<size_t>(fsst12_bytes_segment_view.Size());
+	const auto data = reinterpret_cast<const std::byte*>(fsst12_bytes_segment_view.data);
+	return OwnedSpan<const std::byte> {span<const std::byte>(data, size), bytes_owner};
 }
 } // namespace fastlanes

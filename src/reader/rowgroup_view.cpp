@@ -9,15 +9,23 @@
 #include "fls/footer/rowgroup_descriptor_generated.h"
 #include "fls/reader/column_view.hpp"
 #include "fls/std/span.hpp"
-#include <cstddef> // for std::byte
+#include <cstddef>  // for std::byte
+#include <optional> // for std::optional
 
 namespace fastlanes {
 
-RowgroupView::RowgroupView(span<std::byte> ptr, const RowgroupDescriptor& footer) {
+RowgroupView::RowgroupView(const std::vector<std::optional<ColumnBufferReference>>& cols_by_id,
+                           const RowgroupDescriptor&                               footer) {
+	columns.resize(cols_by_id.size());
 
-	for (const auto& column_descriptor : *footer.m_column_descriptors()) {
-		const span<std::byte> column_span = ptr;
-		columns.emplace_back(make_unique<ColumnView>(column_span, *column_descriptor, footer));
+	for (idx_t id = 0; id < static_cast<idx_t>(cols_by_id.size()); ++id) {
+		if (!cols_by_id[id])
+			continue;
+
+		const auto& [data, owner] = *cols_by_id[id];
+		const auto& cd            = *footer.m_column_descriptors()->Get(id);
+
+		columns[id] = std::make_unique<ColumnView>(data, cd, footer, cd.column_offset(), owner);
 	}
 }
 

@@ -20,11 +20,25 @@ namespace fastlanes {
 
 constexpr static auto const* TABLE_DESCRIPTOR_FILE_NAME {"table_descriptor.fbb"};
 
+up<RowgroupReader> TableReader::get_rowgroup_reader(const n_t                 rowgroup_idx,
+                                                    const std::vector<idx_t>& column_ids) const {
+	const TableDescriptor* td     = m_table_descriptor_handle->Get();
+	const auto             fb_idx = static_cast<flatbuffers::uoffset_t>(rowgroup_idx);
+	const auto*            rg     = td->m_rowgroup_descriptors()->Get(fb_idx); // pointer to RowgroupDescriptor (table)
+
+	auto rowgroup_reader = make_unique<RowgroupReader>(io, *rg, m_connection, column_ids);
+	return rowgroup_reader;
+}
+
 up<RowgroupReader> TableReader::get_rowgroup_reader(const n_t rowgroup_idx) const {
 	const TableDescriptor* td     = m_table_descriptor_handle->Get();
 	const auto             fb_idx = static_cast<flatbuffers::uoffset_t>(rowgroup_idx);
 	const auto*            rg     = td->m_rowgroup_descriptors()->Get(fb_idx); // pointer to RowgroupDescriptor (table)
 	return make_unique<RowgroupReader>(m_file_path, *rg, m_connection);
+}
+
+const TableDescriptor& TableReader::get_descriptor() const {
+	return *m_table_descriptor_handle->Get();
 }
 
 up<Table> TableReader::materialize() const {
@@ -76,6 +90,8 @@ TableReader::TableReader(const path& file_path, Connection& connection)
 		// External footer file
 		m_table_descriptor_handle = make_table_descriptor(file_path.parent_path() / TABLE_DESCRIPTOR_FILE_NAME);
 	}
+
+	io = make_unique<File>(file_path); // todo[IO]
 }
 
 up<RowgroupReader> TableReader::operator[](const n_t rowgroup_idx) const {

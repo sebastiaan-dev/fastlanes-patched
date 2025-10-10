@@ -8,6 +8,7 @@
 
 #include "fls/std/span.hpp"
 #include "fls/std/vector.hpp"
+#include <unordered_map>
 
 namespace fastlanes {
 /*--------------------------------------------------------------------------------------------------------------------*/

@@ -16,7 +16,7 @@ RowgroupView::RowgroupView(span<std::byte> ptr, const RowgroupDescriptorT& foote
 
 	for (const auto& column_descriptor : footer.m_column_descriptors) {
 		const span<std::byte> column_span = ptr;
-		columns.emplace_back(make_unique<ColumnView>(column_span, *column_descriptor, footer));
+		columns.emplace_back(make_unique<ColumnView>(column_span, *column_descriptor, footer, 0));
 	}
 }
 

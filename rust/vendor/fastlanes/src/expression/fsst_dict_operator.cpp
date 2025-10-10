@@ -181,8 +181,6 @@ void dec_fsst_dict_opr<INDEX_PT>::Decode(vector<uint8_t>& byte_arr_vec, vector<o
 		const auto decoded_size = static_cast<ofs_t>(fsst_decompress(
 		    &fsst_decoder, length, in_byte_arr + offset, CFG::String::max_bytes_per_string, tmp_string.data()));
 
-		FLS_ASSERT_L(decoded_size, tmp_string.capacity())
-
 		length_pointer[idx] = decoded_size;
 
 		if (byte_arr_vec.capacity() - byte_arr_vec.size() < CFG::String::max_bytes_per_string) {

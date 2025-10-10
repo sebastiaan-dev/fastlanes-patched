@@ -40,6 +40,7 @@ table ColumnDescriptor  {
   segment_descriptors: [SegmentDescriptor];     // vector of tables
   n_null:              ulong;
   fix_me_decimal_type: DecimalType;            // table
+  min:                 BinaryValue;            // table (added last for compatibility)
 }
 
 // ─────────────────────────────────────────────────────────────

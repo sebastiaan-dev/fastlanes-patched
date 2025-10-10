@@ -9,6 +9,7 @@
 #include "fls/common/alias.hpp"                   // for up, n_t
 #include "fls/cor/lyt/buf.hpp"                    // for Buf
 #include "fls/expression/physical_expression.hpp" // for PhysicalExpr
+#include "fls/io/io.hpp"
 #include "fls/reader/rowgroup_reader.hpp"
 #include "fls/std/filesystem.hpp" // for path
 #include "fls/std/vector.hpp"     // for vector
@@ -22,6 +23,10 @@ class Rowgroup;
 /*--------------------------------------------------------------------------------------------------------------------*/
 class RowgroupReader {
 public:
+	explicit RowgroupReader(const io&                 io,
+	                        const RowgroupDescriptor& rowgroup_descriptor,
+	                        Connection&               fls,
+	                        const std::vector<idx_t>& column_ids);
 	explicit RowgroupReader(const path& file_path, const RowgroupDescriptor& rowgroup_descriptor, Connection& fls);
 
 public:
@@ -43,10 +48,15 @@ public:
 	vector<sp<PhysicalExpr>> m_expressions;
 
 private:
-	Connection&               m_connection;
-	const RowgroupDescriptor& m_rowgroup_descriptor;
-	up<Buf>                   m_buf;
-	up<RowgroupView>          m_rowgroup_view;
+	void Initialize(const path& file_path);
+
+	void NormalizeColumnIds();
+
+	Connection&                       m_connection;
+	const RowgroupDescriptor&         m_rowgroup_descriptor;
+	std::vector<std::shared_ptr<Buf>> m_column_bufs;
+	up<RowgroupView>                  m_rowgroup_view;
+	std::vector<idx_t>                m_column_ids;
 };
 
 } // namespace fastlanes

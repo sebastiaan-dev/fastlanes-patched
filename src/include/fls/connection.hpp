@@ -53,7 +53,6 @@ public:
 	friend class column;
 	friend class equal;
 	friend class RowgroupEncoder;
-	friend class Wizard;
 	friend class Encoder;
 	friend class CsvReader;
 	friend class Rowgroup;
@@ -69,8 +68,6 @@ public:
 	Connection& read_json(const path& dir_path);
 	///! read a fls file return a reader
 	up<TableReader> read_fls(const path& file_path);
-	///!
-	Connection& spell();
 	///!
 	Connection& to_fls(const path& dir_path);
 	//
@@ -119,10 +116,6 @@ public:
 	Connection& inline_footer();
 	//
 	string_view get_version() const;
-
-private:
-	void prepare_table() const;
-	void write_footer(const path& dir_path) const;
 
 private:
 	up<Config>           m_config;

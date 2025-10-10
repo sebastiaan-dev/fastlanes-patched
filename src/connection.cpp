@@ -22,9 +22,10 @@
 #include "fls/std/vector.hpp"          // for fastlanes::vector
 #include "fls/table/rowgroup.hpp"      // for Rowgroup
 #include "fls/table/table.hpp"         // for Table
-#include "fls/wizard/wizard.hpp"       // for Wizard
-#include <algorithm>                   // for std::ranges::none_of
-#include <cstdint>                     // for uint64_t
+#include "fls/writer/file_writer.hpp"
+#include "fls/writer/rowgroup_writer.hpp"
+#include <algorithm> // for std::ranges::none_of
+#include <cstdint>   // for uint64_t
 #include <filesystem>
 #include <memory>    // for std::make_unique, unique_ptr
 #include <stdexcept> // for std::runtime_error
@@ -72,35 +73,8 @@ void prepare_rowgroup(Rowgroup& rowgroup, const Config& config) {
 	rowgroup.GetStatistics();
 }
 
-void Connection::prepare_table() const {
-	for (auto& rowgroup : m_table->m_rowgroups) {
-		prepare_rowgroup(*rowgroup, *m_config);
-	}
-}
-
-void Connection::write_footer(const path& file_path) const {
-	// Write table descriptor
-
-	const n_t        table_descriptor_size = FlatBuffers::Write(*this, file_path, *m_table_descriptor);
-	const FileFooter file_footer {
-	    m_table_descriptor->m_table_binary_size, table_descriptor_size, Info::get_magic_bytes()};
-
-	FileFooter::Write(*this, file_path, file_footer);
-}
-
 up<Connection> connect() {
 	return make_unique<Connection>();
-}
-
-Connection& Connection::spell() {
-	if (m_table == nullptr) {
-		/**/
-		throw std::runtime_error("Data is not loaded.");
-	}
-
-	m_table_descriptor = Wizard::Spell(*this);
-
-	return *this;
 }
 
 Connection& Connection::to_fls(const path& file_path) {
@@ -108,31 +82,26 @@ Connection& Connection::to_fls(const path& file_path) {
 		throw std::runtime_error("Fastlanes file already exists at: " + file_path.string());
 	}
 
-	// check if data is loaded into memory
 	if (m_table == nullptr) {
 		throw std::runtime_error("data is not loaded.");
 	}
 
-	prepare_table();
+	auto writer_builder = std::move(FileWriter::Builder().WithPath(file_path).WithConnection(*this));
 
-	//  make a rowgroup-get_descriptor if there is no rowgroup-get_descriptor .
-	if (m_table_descriptor == nullptr) {
-		spell();
+	const auto writer = writer_builder.Build();
+	writer->Open();
+
+	for (idx_t rg_idx = 0; rg_idx < m_table->get_n_rowgroups(); rg_idx++) {
+		auto&      rowgroup_ptr     = m_table->m_rowgroups[rg_idx];
+		const auto row_group_writer = make_unique<RowGroupWriter>(*writer, *rowgroup_ptr);
+
+		row_group_writer->Finalize();
+		row_group_writer->Flush();
+		// Prevent memory pressure build-up
+		rowgroup_ptr.reset();
 	}
 
-	FileHeader::Write(*this, file_path);
-
-	// encode
-	Encoder::encode(*this, file_path);
-
-	if (m_config->enable_verbose) {
-		fs::path json_file = file_path;
-		json_file += ".json";
-		JSON::write(*this, json_file, *m_table_descriptor);
-	}
-
-	// write the footer
-	write_footer(file_path);
+	writer->Close();
 
 	return *this;
 }

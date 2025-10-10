@@ -63,8 +63,8 @@ public:
 	SegmentView     fsst_bytes_segment_view;
 	SegmentView     fsst_offset_segment_view;
 	const INDEX_PT* index_arr;
-	vector<uint8_t> tmp_string;
-	fsst_decoder_t  fsst_decoder;
+	alignas(64) std::array<uint8_t, CFG::String::max_bytes_per_string> tmp_string;
+	fsst_decoder_t fsst_decoder;
 };
 
 } // namespace fastlanes

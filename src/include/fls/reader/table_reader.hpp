@@ -8,6 +8,7 @@
 
 #include "fls/api/api.hpp"
 #include "fls/common/alias.hpp"
+#include "fls/io/io.hpp"
 #include "fls/std/filesystem.hpp"
 #include "fls/std/string.hpp"
 
@@ -16,6 +17,8 @@ namespace fastlanes {
 class Connection;
 class RowgroupReader;
 class TableDescriptorHandle;
+struct TableDescriptorT;
+struct TableDescriptor;
 class Table;
 /*--------------------------------------------------------------------------------------------------------------------*/
 class FLS_API TableReader {
@@ -25,7 +28,11 @@ public:
 public:
 	up<RowgroupReader> operator[](n_t rowgroup_idx) const;
 	//
+	[[nodiscard]] up<RowgroupReader> get_rowgroup_reader(n_t rowgroup_idx, const std::vector<idx_t>& column_ids) const;
 	[[nodiscard]] up<RowgroupReader> get_rowgroup_reader(n_t rowgroup_idx) const;
+
+	const TableDescriptor& get_descriptor() const;
+
 	//
 	[[nodiscard]] up<Table> materialize() const;
 	// API: append to the existing csv.
@@ -36,8 +43,10 @@ public:
 
 private:
 	up<TableDescriptorHandle> m_table_descriptor_handle;
+	up<TableDescriptorT>      m_table_descriptor;
 	Connection&               m_connection;
 	const path                m_file_path;
+	io                        io;
 };
 
 } // namespace fastlanes

@@ -49,23 +49,29 @@ n_t get_size(const entry_point_view_t& entry_point_view);
 \*--------------------------------------------------------------------------------------------------------------------*/
 class SegmentView {
 public:
-	explicit SegmentView(entry_point_view_t entry_point_view, span<std::byte> data_span);
+	explicit SegmentView(entry_point_view_t    entry_point_view,
+	                     span<std::byte>       data_span,
+	                     std::shared_ptr<void> owner = nullptr);
 
 public:
 	void              PointTo(n_t vec_idx);
 	[[nodiscard]] n_t Size() const;
 
 public:
-	entry_point_view_t entry_point_view;
-	span<std::byte>    data_span;
-	std::byte*         data;
-	n_t                vec_idx;
+	entry_point_view_t    entry_point_view;
+	span<std::byte>       data_span;
+	std::byte*            data;
+	n_t                   vec_idx;
+	std::shared_ptr<void> owner;
 };
 
 /*--------------------------------------------------------------------------------------------------------------------*\
  * make_segment_view
 \*--------------------------------------------------------------------------------------------------------------------*/
-SegmentView make_segment_view(span<std::byte> column_span, const SegmentDescriptor& segment_descriptor);
+SegmentView make_segment_view(span<std::byte>          column_span,
+                              const SegmentDescriptor& segment_descriptor,
+                              uint64_t                 column_offset = 0,
+                              std::shared_ptr<void>    owner         = nullptr);
 
 /*--------------------------------------------------------------------------------------------------------------------*\
  * Segment
