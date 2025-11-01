@@ -88,7 +88,7 @@ inline up<TableDescriptorHandle> make_table_descriptor(const path& file_path, bo
 }
 
 inline up<TableDescriptorHandle>
-make_table_descriptor(const path& file_path, n_t offset, n_t size, bool verify = true) {
+make_table_descriptor(const path& file_path, n_t offset, n_t size, bool verify = false) {
 
 	return std::make_unique<TableDescriptorHandle>(
 	    TableDescriptorHandle::FromFileSlice(file_path, offset, size, verify));

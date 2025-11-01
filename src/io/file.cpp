@@ -135,15 +135,27 @@ namespace fastlanes {
 
 File::File(const path& p)
     : m_path(p) {
+
+	const int fd = ::open(m_path.c_str(), O_RDONLY | O_CLOEXEC);
+	if (fd < 0) {
+		FLS_ABORT("Could not open file in read-only mode")
+	}
+	m_fd = fd;
+
+	struct stat st;
+	if (::fstat(fd, &st) != 0) {
+		::close(fd);
+		FLS_ABORT("Could not stat file in read-only mode")
+	}
+	m_file_size = static_cast<n_t>(st.st_size);
 }
 
 File::~File() {
 	if (m_of_stream) {
 		FileSystem::close(*m_of_stream);
 	}
-	if (fd_ >= 0) {
-		::close(fd_);
-		fd_ = -1;
+	if (m_fd >= 0) {
+		::close(m_fd);
 	}
 }
 
@@ -169,26 +181,6 @@ File::~File() {
 // #endif
 // 	file_size_cached_ = stat_size(m_path);
 // }
-inline off_t fstat_size(int fd) {
-	struct stat st;
-	if (::fstat(fd, &st) != 0) {
-		throw std::system_error(errno, std::generic_category(), "fstat failed");
-	}
-	return st.st_size;
-}
-void File::ensure_fd_open_for_read() {
-	std::call_once(open_once_, [&] {
-		int fd = ::open(m_path.c_str(), O_RDONLY);
-		if (fd < 0)
-			throw std::system_error(errno, std::generic_category(), "open(O_RDONLY) failed");
-#if defined(__APPLE__)
-		int zero = 0;
-		(void)fcntl(fd, F_RDAHEAD, zero); // disable sequential readahead for random
-#endif
-		fd_               = fd;
-		file_size_cached_ = static_cast<n_t>(fstat_size(fd_)); // use fstat, not stat(path)
-	});
-}
 
 void File::Write(const Buf& buf) {
 	if (!m_of_stream) {
@@ -198,21 +190,12 @@ void File::Write(const Buf& buf) {
 }
 
 void File::Read(Buf& buf) {
-	ensure_fd_open_for_read();
-	FLS_ASSERT_LE(file_size_cached_, buf.Capacity());
-	// issue one pread (loop for short/EINTR)
-	n_t      to_read = file_size_cached_;
-	uint8_t* dst     = buf.mutable_data();
-	n_t      done    = 0;
-	while (done < to_read) {
-		ssize_t n = ::pread(fd_, dst + done, static_cast<size_t>(to_read - done), static_cast<off_t>(done));
-		if (n < 0 && errno == EINTR)
-			continue;
-		if (n <= 0)
-			throw std::runtime_error("pread short/failed in Read()");
-		done += static_cast<n_t>(n);
-	}
+	FLS_ASSERT_LE(m_file_size, buf.Capacity());
+
+	uint8_t* dst = buf.mutable_data();
+	ReadInternal(dst, m_file_size);
 }
+
 void File::Append(const Buf& buf) {
 	if (!m_of_stream) {
 		// Open in append mode, binary
@@ -258,37 +241,54 @@ void File::ReadRange(Buf& buf, const n_t offset, const n_t size) {
 	// 		throw std::runtime_error("pread short/failed in ReadRange()");
 	// 	done += static_cast<n_t>(n);
 	// }
-	ensure_fd_open_for_read();
-	FLS_ASSERT_LE(offset + size, file_size_cached_);
+	// FLS_ASSERT_LE(offset + size, file_size_cached_);
+	// FLS_ASSERT_LE(size, buf.Capacity());
+	//
+	// n_t      done = 0;
+	// uint8_t* dst  = buf.mutable_data();
+	//
+	// while (done < size) {
+	// 	// uint32_t inflight = IoTracer::get().on_submit();
+	// 	// auto     t0       = std::chrono::steady_clock::now();
+	// 	ssize_t n = ::pread(fd_, dst + done, static_cast<size_t>(size - done), static_cast<off_t>(offset + done));
+	// 	// auto     t1 = std::chrono::steady_clock::now();
+	// 	// IoTracer::get().on_complete();
+	//
+	// 	if (n < 0 && errno == EINTR)
+	// 		continue;
+	// 	if (n <= 0)
+	// 		throw std::runtime_error("pread short/failed in ReadRange()");
+	//
+	// 	// auto     dur = std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count();
+	// 	// uint64_t ns  = static_cast<uint64_t>(dur);
+	// 	// IoTracer::get().record((uint64_t)(offset + done), (uint32_t)n, ns, inflight);
+	//
+	// 	done += static_cast<n_t>(n);
+	// }
+	FLS_ASSERT_LE(offset + size, m_file_size);
 	FLS_ASSERT_LE(size, buf.Capacity());
 
-	n_t      done = 0;
-	uint8_t* dst  = buf.mutable_data();
-
-	while (done < size) {
-		// uint32_t inflight = IoTracer::get().on_submit();
-		// auto     t0       = std::chrono::steady_clock::now();
-		ssize_t n = ::pread(fd_, dst + done, static_cast<size_t>(size - done), static_cast<off_t>(offset + done));
-		// auto     t1 = std::chrono::steady_clock::now();
-		// IoTracer::get().on_complete();
-
-		if (n < 0 && errno == EINTR)
-			continue;
-		if (n <= 0)
-			throw std::runtime_error("pread short/failed in ReadRange()");
-
-		// auto     dur = std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count();
-		// uint64_t ns  = static_cast<uint64_t>(dur);
-		// IoTracer::get().record((uint64_t)(offset + done), (uint32_t)n, ns, inflight);
-
-		done += static_cast<n_t>(n);
-	}
+	uint8_t* dst = buf.mutable_data();
+	ReadInternal(dst, size, static_cast<off_t>(offset));
 }
 
 n_t File::Size() const {
-	if (!exists(m_path))
-		throw std::runtime_error("File does not exist");
-	return static_cast<n_t>(std::filesystem::file_size(m_path));
+	return m_file_size;
+}
+
+void File::ReadInternal(uint8_t* dst, const n_t size, const off_t offset) const {
+	n_t done = 0;
+	while (done < size) {
+		const ssize_t n_bytes = ::pread(m_fd, dst + done, size - done, offset + static_cast<off_t>(done));
+		if (n_bytes < 0 && errno == EINTR) {
+			continue;
+		}
+		if (n_bytes <= 0) {
+			FLS_ABORT("Could not read from file in read-only mode")
+		}
+
+		done += static_cast<n_t>(n_bytes);
+	}
 }
 
 /*--------------------------------------------------------------------------------------------------------------------*\

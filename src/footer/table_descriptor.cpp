@@ -64,7 +64,7 @@ const TableDescriptor& make_table_descriptor(const path& file_path, std::vector<
 const TableDescriptor&
 make_table_descriptor(const path& file_path, n_t offset, n_t size, std::vector<uint8_t>& storage) {
 	File f(file_path);
-	Buf  buf;
+	Buf  buf(size);
 
 	f.ReadRange(buf, offset, size);
 

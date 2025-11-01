@@ -135,13 +135,14 @@ public:
 	static void append(const path& file_path, const string& dump);
 
 private:
+	void ReadInternal(uint8_t* dst, n_t size, off_t offset = 0) const;
+
+private:
 	path              m_path;
 	up<std::ofstream> m_of_stream;
 	up<std::ifstream> m_if_stream;
-	int               fd_ {-1};
-	n_t               file_size_cached_ {0};
-	std::once_flag    open_once_;
-	void              ensure_fd_open_for_read();
+	int               m_fd {-1};
+	size_t            m_file_size {0};
 };
 
 struct ReadEvent {
