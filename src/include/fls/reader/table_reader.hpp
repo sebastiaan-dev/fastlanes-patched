@@ -11,6 +11,7 @@
 #include "fls/io/io.hpp"
 #include "fls/std/filesystem.hpp"
 #include "fls/std/string.hpp"
+#include <memory>
 
 namespace fastlanes {
 /*--------------------------------------------------------------------------------------------------------------------*/
@@ -20,6 +21,7 @@ class TableDescriptorHandle;
 struct TableDescriptorT;
 struct TableDescriptor;
 class Table;
+class BufPool;
 /*--------------------------------------------------------------------------------------------------------------------*/
 class FLS_API TableReader {
 public:
@@ -47,6 +49,7 @@ private:
 	Connection&               m_connection;
 	const path                m_file_path;
 	io                        io;
+	std::shared_ptr<BufPool>  m_buffer_pool;
 };
 
 } // namespace fastlanes

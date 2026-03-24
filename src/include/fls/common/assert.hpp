@@ -33,7 +33,7 @@
 #define FLS_ASSERT_CORRECT_EXP_T(EXP_T)         FLS_ASSERT(EXP_T != 0, #EXP_T, fastlanes::Assert::CORRECT_EXP_T_MSG);
 #define FLS_ASSERT_CORRECT_N(Expr)              FLS_ASSERT(Expr >= 0, " ", fastlanes::Assert::NEGATIVE_INDEX);
 #define FLS_ASSERT_CORRECT_LMTED_C(C, LMT)      FLS_ASSERT(C >= 0 && C = < LMT, " ", fastlanes::Assert::NEGATIVE_INDEX);
-#define FLS_ASSERT_CORRECT_POS(POS)             FLS_ASSERT(POS >= 0 && POS <= 1023, " ", fastlanes::Assert::NEGATIVE_INDEX);
+#define FLS_ASSERT_CORRECT_POS(POS)             FLS_ASSERT(POS >= 0 && POS <= 1024, " ", fastlanes::Assert::NEGATIVE_INDEX);
 #define FLS_ASSERT_CORRECT_SEGMENT_SIZE(Expr)   FLS_ASSERT(Expr >= 8, " ", "");
 #define FLS_ASSERT_EQUALITY(L_Expr, R_Expr)     FLS_ASSERT(L_Expr == R_Expr, " ", " ");
 #define FLS_ASSERT_LESS(L_Expr, R_Expr)         FLS_ASSERT(L_Expr <= R_Expr, " ", " ");

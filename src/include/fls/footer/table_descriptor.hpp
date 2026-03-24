@@ -8,6 +8,7 @@
 
 #include "fls/common/alias.hpp" // n_t, up
 #include "fls/footer/table_descriptor_generated.h"
+#include "fls/io/io.hpp"
 #include "fls/std/filesystem.hpp" // path
 #include "fls/std/vector.hpp"     // fastlanes::vector alias
 #include <cstddef>
@@ -29,7 +30,7 @@ public:
 	static TableDescriptorHandle FromFile(const path& file_path, bool verify = true);
 
 	// Read a slice [offset, offset+size) from file and own the bytes.
-	static TableDescriptorHandle FromFileSlice(const path& file_path, n_t offset, n_t size, bool verify = true);
+	static TableDescriptorHandle FromFileSlice(const io& io, n_t offset, n_t size, bool verify = true);
 
 	// Pack native T -> bytes and expose a view.
 	static TableDescriptorHandle FromNative(const TableDescriptorT& native);
@@ -87,11 +88,9 @@ inline up<TableDescriptorHandle> make_table_descriptor(const path& file_path, bo
 	return std::make_unique<TableDescriptorHandle>(TableDescriptorHandle::FromFile(file_path, verify));
 }
 
-inline up<TableDescriptorHandle>
-make_table_descriptor(const path& file_path, n_t offset, n_t size, bool verify = false) {
+inline up<TableDescriptorHandle> make_table_descriptor(const io& io, n_t offset, n_t size, bool verify = false) {
 
-	return std::make_unique<TableDescriptorHandle>(
-	    TableDescriptorHandle::FromFileSlice(file_path, offset, size, verify));
+	return std::make_unique<TableDescriptorHandle>(TableDescriptorHandle::FromFileSlice(io, offset, size, verify));
 }
 
 } // namespace fastlanes
