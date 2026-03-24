@@ -7,6 +7,7 @@
 #include "fls/common/alias.hpp"
 #include "fls/connection.hpp"                     // for Connector (ptr only)
 #include "fls/cor/lyt/buf.hpp"                    // for Buf
+#include "fls/cor/lyt/buf_pool.hpp"
 #include "fls/csv/csv.hpp"                        // for CSV
 #include "fls/encoder/materializer.hpp"           //
 #include "fls/expression/decoding_operator.hpp"   //
@@ -30,9 +31,11 @@ namespace fastlanes {
 RowgroupReader::RowgroupReader(const io&                  io,
                                const RowgroupDescriptor& rowgroup_descriptor,
                                Connection&                connection,
-                               const std::vector<idx_t>&  column_ids)
+                               const std::vector<idx_t>&  column_ids,
+                               std::shared_ptr<BufPool>   buffer_pool)
     : m_connection(connection)
     , m_rowgroup_descriptor(rowgroup_descriptor)
+    , m_buffer_pool(std::move(buffer_pool))
     , m_column_ids(column_ids) {
 
 	// constexpr uint64_t GAP_TO_MERGE   = 128ull * 1024;      // merge gaps ≤ 128 KiB
@@ -211,8 +214,9 @@ RowgroupReader::RowgroupReader(const io&                  io,
 			auto  col_size   = cd->total_size();
 			auto  col_offset = m_rowgroup_descriptor.m_offset() + cd->column_offset();
 
-			auto buffer = std::make_shared<Buf>(col_size); // todo[memory_pool]
+			auto buffer = m_buffer_pool ? m_buffer_pool->Acquire(col_size) : std::make_shared<Buf>(col_size);
 			IO::range_read(io, *buffer, col_offset, col_size);
+			buffer->Advance(col_size);
 			m_column_bufs.push_back(buffer);
 
 			columns[col_idx] = ColumnBufferReference {buffer->Span(), std::shared_ptr<void>(buffer, buffer.get())};
@@ -259,9 +263,11 @@ RowgroupReader::RowgroupReader(const io&                  io,
 
 RowgroupReader::RowgroupReader(const path&                file_path,
                                const RowgroupDescriptor& rowgroup_descriptor,
-                               Connection&                connection)
+                               Connection&                connection,
+                               std::shared_ptr<BufPool>   buffer_pool)
     : m_connection(connection)
-    , m_rowgroup_descriptor(rowgroup_descriptor) {
+    , m_rowgroup_descriptor(rowgroup_descriptor)
+    , m_buffer_pool(std::move(buffer_pool)) {
 
 	m_column_ids.resize(m_rowgroup_descriptor.m_column_descriptors()->size());
 	std::iota(m_column_ids.begin(), m_column_ids.end(), idx_t {0});
@@ -279,8 +285,9 @@ RowgroupReader::RowgroupReader(const path&                file_path,
 			auto  col_size   = cd->total_size();
 			auto  col_offset = m_rowgroup_descriptor.m_offset() + cd->column_offset();
 
-			auto buffer = std::make_shared<Buf>(col_size); // todo[memory_pool]
+			auto buffer = m_buffer_pool ? m_buffer_pool->Acquire(col_size) : std::make_shared<Buf>(col_size);
 			IO::range_read(io, *buffer, col_offset, col_size);
+			buffer->Advance(col_size);
 			m_column_bufs.push_back(buffer);
 
 			columns[col_idx] = ColumnBufferReference {buffer->Span(), std::shared_ptr<void>(buffer, buffer.get())};

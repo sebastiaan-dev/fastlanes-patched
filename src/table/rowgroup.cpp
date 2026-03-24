@@ -368,7 +368,7 @@ void cast(rowgroup_pt& rowgroup, ColumnDescriptorT& column_descriptor) {
 			          }
 		          },
 		          [&]<typename PT>(up<TypedCol<PT>>& typed_col) {
-			          if (column_descriptor.data_type == DataType::DATE) {
+			          if (column_descriptor.data_type == DataType::DATE || column_descriptor.data_type == DataType::TIMESTAMP) {
 				          should_be_cast = false;
 				          return;
 			          }

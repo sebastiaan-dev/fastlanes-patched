@@ -163,6 +163,10 @@ private:
 			TypedDecide<int32_t>(rowgroup, column_descriptor, footer);
 			break;
 		}
+		case DataType::TIMESTAMP: {
+			TypedDecide<int64_t>(rowgroup, column_descriptor, footer);
+			break;
+		}
 		case DataType::BYTE_ARRAY: {
 			column_descriptor.encoding_rpn->operator_tokens.emplace_back(OperatorToken::EXP_UNCOMPRESSED_STR);
 			break;

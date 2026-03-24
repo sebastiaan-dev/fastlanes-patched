@@ -11,6 +11,7 @@
 #include "fls/footer/rowgroup_descriptor.hpp"
 #include "fls/footer/table_descriptor_generated.h"
 #include "fls/io/file.hpp"
+#include "fls/io/io.hpp"
 #include "fls/std/filesystem.hpp"
 #include "fls/std/vector.hpp"
 #include "fls/table/table.hpp"
@@ -64,7 +65,7 @@ const TableDescriptor& make_table_descriptor(const path& file_path, std::vector<
 const TableDescriptor&
 make_table_descriptor(const path& file_path, n_t offset, n_t size, std::vector<uint8_t>& storage) {
 	File f(file_path);
-	Buf  buf;
+	Buf  buf(size);
 
 	f.ReadRange(buf, offset, size);
 
@@ -126,10 +127,9 @@ TableDescriptorHandle TableDescriptorHandle::FromFile(const path& file_path, boo
 	return FromBytes(std::move(storage), verify);
 }
 
-TableDescriptorHandle TableDescriptorHandle::FromFileSlice(const path& file_path, n_t offset, n_t size, bool verify) {
-	File f(file_path);
+TableDescriptorHandle TableDescriptorHandle::FromFileSlice(const io& io, n_t offset, n_t size, bool verify) {
 	Buf  buf;
-	f.ReadRange(buf, offset, size);
+	IO::range_read(io, buf, offset, size);
 
 	const auto*     p = reinterpret_cast<const uint8_t*>(buf.data());
 	vector<uint8_t> storage;

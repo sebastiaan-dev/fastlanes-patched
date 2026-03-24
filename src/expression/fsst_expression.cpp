@@ -122,8 +122,6 @@ dec_fsst_opr::dec_fsst_opr(PhysicalExpr& physical_expr, const ColumnView& column
 	header_owner = fsst_header_segment_view.owner;
 
 	FLS_ASSERT_E(symbol_table_size, fsst_header_segment_view.data_span.size())
-
-	tmp_string.resize(CFG::String::max_bytes_per_string);
 }
 
 void dec_fsst_opr::PointTo(const n_t vec_n) {
